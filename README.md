@@ -1,6 +1,6 @@
 # klottr backend
 
-Service in the same vein as hackernews. But content posted by users to site only available for 24h.
+Service in the same vein as hackernews or reddit. Threads, comments, users, upvotes. Content posted by users to site only available for 24h.
 
 ## Required .env file to run locally
 
