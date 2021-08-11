@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/golang-jwt/jwt"
 	"github.com/rgynn/klottr/pkg/user"
@@ -17,16 +18,16 @@ import (
 
 type RequestIDContextKey struct{}
 
-func RequestIDContext(ctx context.Context, reqid string) context.Context {
-	return context.WithValue(ctx, RequestIDContextKey{}, reqid)
+func RequestIDContext(ctx context.Context, rid string) context.Context {
+	return context.WithValue(ctx, RequestIDContextKey{}, rid)
 }
 
 func RequestIDFromContext(ctx context.Context) (*string, error) {
-	reqid, ok := ctx.Value(RequestIDContextKey{}).(string)
+	rid, ok := ctx.Value(RequestIDContextKey{}).(string)
 	if !ok {
 		return nil, errors.New("failed to type assert request id (string) from context")
 	}
-	return &reqid, nil
+	return &rid, nil
 }
 
 func randomString(n int) string {
@@ -40,7 +41,11 @@ func randomString(n int) string {
 
 func (svc *Service) RequestIDMiddleware(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		h.ServeHTTP(w, r.WithContext(RequestIDContext(r.Context(), randomString(20))))
+		reqid := r.Header.Get("X-Request-ID")
+		if reqid == "" {
+			reqid = randomString(20)
+		}
+		h.ServeHTTP(w, r.WithContext(RequestIDContext(r.Context(), reqid)))
 	})
 }
 
@@ -48,12 +53,12 @@ func (svc *Service) RequestIDMiddleware(h http.Handler) http.Handler {
 
 type LoggerContextKey struct{}
 
-func LoggerContext(ctx context.Context, contextlogger *logrus.Logger) context.Context {
+func LoggerContext(ctx context.Context, contextlogger *logrus.Entry) context.Context {
 	return context.WithValue(ctx, LoggerContextKey{}, contextlogger)
 }
 
-func LoggerFromContext(ctx context.Context) (*logrus.Logger, error) {
-	contextlogger, ok := ctx.Value(LoggerContextKey{}).(*logrus.Logger)
+func LoggerFromContext(ctx context.Context) (*logrus.Entry, error) {
+	contextlogger, ok := ctx.Value(LoggerContextKey{}).(*logrus.Entry)
 	if !ok {
 		return nil, errors.New("failed to type assert *logrus.Logger from context")
 	}
@@ -62,7 +67,22 @@ func LoggerFromContext(ctx context.Context) (*logrus.Logger, error) {
 
 func (svc *Service) ContextLoggerMiddleware(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		h.ServeHTTP(w, r.WithContext(LoggerContext(r.Context(), logrus.New())))
+		contextlogger := logrus.New().WithFields(logrus.Fields{
+			"start":  time.Now().UTC().Format(time.RFC3339),
+			"method": r.Method,
+			"path":   r.URL.Path,
+			"query":  r.URL.Query().Encode(),
+		})
+		if rid, err := RequestIDFromContext(r.Context()); err == nil {
+			contextlogger = contextlogger.WithField("rid", *rid)
+		}
+		h.ServeHTTP(w, r.WithContext(LoggerContext(r.Context(), contextlogger)))
+	})
+}
+
+func (svc *Service) AccessLoggerMiddleware(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h.ServeHTTP(w, r)
 	})
 }
 

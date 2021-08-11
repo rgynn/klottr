@@ -15,9 +15,9 @@ func (svc *Service) CreateCategoryThreadHandler(w http.ResponseWriter, r *http.R
 	m := new(thread.Model)
 	ctx := r.Context()
 
-	_, err := ClaimsFromContext(ctx)
+	logger, err := LoggerFromContext(ctx)
 	if err != nil {
-		NewErrorResponse(w, r, http.StatusUnauthorized, err)
+		NewErrorResponse(w, r, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -36,6 +36,7 @@ func (svc *Service) CreateCategoryThreadHandler(w http.ResponseWriter, r *http.R
 	switch *m.Category {
 	case "misc":
 		if err := svc.misc.Create(ctx, m); err != nil {
+			logger.Errorf("Failed to create misc thread: %s", err.Error())
 			NewErrorResponse(w, r, http.StatusInternalServerError, err)
 			return
 		}
@@ -55,9 +56,9 @@ func (svc *Service) ListCategoryThreadsHandler(w http.ResponseWriter, r *http.Re
 	category := mux.Vars(r)["category"]
 	ctx := r.Context()
 
-	_, err := ClaimsFromContext(ctx)
+	logger, err := LoggerFromContext(ctx)
 	if err != nil {
-		NewErrorResponse(w, r, http.StatusUnauthorized, err)
+		NewErrorResponse(w, r, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -77,6 +78,7 @@ func (svc *Service) ListCategoryThreadsHandler(w http.ResponseWriter, r *http.Re
 	case "misc":
 		result, err = svc.misc.List(ctx, from, size)
 		if err != nil {
+			logger.Errorf("Failed to list misc threads: %s", err.Error())
 			NewErrorResponse(w, r, http.StatusInternalServerError, err)
 			return
 		}
@@ -93,27 +95,30 @@ func (svc *Service) ListCategoryThreadsHandler(w http.ResponseWriter, r *http.Re
 
 func (svc *Service) GetCategoryThreadHandler(w http.ResponseWriter, r *http.Request) {
 
-	category := mux.Vars(r)["category"]
-	id := mux.Vars(r)["thread_id"]
+	vars := mux.Vars(r)
+	category := vars["category"]
+	id := vars["thread_id"]
 	ctx := r.Context()
 
-	_, err := ClaimsFromContext(ctx)
+	logger, err := LoggerFromContext(ctx)
 	if err != nil {
-		NewErrorResponse(w, r, http.StatusUnauthorized, err)
+		NewErrorResponse(w, r, http.StatusInternalServerError, err)
 		return
 	}
 
-	result := new(thread.Model)
+	var result *thread.Model
 
 	switch category {
 	case "misc":
 		result, err = svc.misc.Get(ctx, &id)
-		if err != nil {
-			NewErrorResponse(w, r, http.StatusInternalServerError, err)
-			return
-		}
 	default:
 		NewErrorResponse(w, r, http.StatusNotFound, thread.ErrCategoryNotFound)
+		return
+	}
+
+	if err != nil {
+		logger.Errorf("Failed to get misc thread: %s", err.Error())
+		NewErrorResponse(w, r, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -125,19 +130,21 @@ func (svc *Service) GetCategoryThreadHandler(w http.ResponseWriter, r *http.Requ
 
 func (svc *Service) UpVoteCategoryThreadHandler(w http.ResponseWriter, r *http.Request) {
 
-	category := mux.Vars(r)["category"]
-	id := mux.Vars(r)["thread_id"]
+	vars := mux.Vars(r)
+	category := vars["category"]
+	id := vars["thread_id"]
 	ctx := r.Context()
 
-	_, err := ClaimsFromContext(ctx)
+	logger, err := LoggerFromContext(ctx)
 	if err != nil {
-		NewErrorResponse(w, r, http.StatusUnauthorized, err)
+		NewErrorResponse(w, r, http.StatusInternalServerError, err)
 		return
 	}
 
 	switch category {
 	case "misc":
 		if err := svc.misc.IncVote(ctx, &id); err != nil {
+			logger.Errorf("Failed to upvote misc thread: %s", err.Error())
 			NewErrorResponse(w, r, http.StatusInternalServerError, err)
 			return
 		}
@@ -151,19 +158,21 @@ func (svc *Service) UpVoteCategoryThreadHandler(w http.ResponseWriter, r *http.R
 
 func (svc *Service) DownVoteCategoryThreadHandler(w http.ResponseWriter, r *http.Request) {
 
-	category := mux.Vars(r)["category"]
-	id := mux.Vars(r)["thread_id"]
+	vars := mux.Vars(r)
+	category := vars["category"]
+	id := vars["thread_id"]
 	ctx := r.Context()
 
-	_, err := ClaimsFromContext(ctx)
+	logger, err := LoggerFromContext(ctx)
 	if err != nil {
-		NewErrorResponse(w, r, http.StatusUnauthorized, err)
+		NewErrorResponse(w, r, http.StatusInternalServerError, err)
 		return
 	}
 
 	switch category {
 	case "misc":
 		if err := svc.misc.DecVote(ctx, &id); err != nil {
+			logger.Errorf("Failed to upvote misc thread: %s", err.Error())
 			NewErrorResponse(w, r, http.StatusInternalServerError, err)
 			return
 		}

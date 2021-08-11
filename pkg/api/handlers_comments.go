@@ -11,8 +11,9 @@ import (
 func (svc *Service) CreateCommentHandler(w http.ResponseWriter, r *http.Request) {
 
 	m := new(comment.Model)
-	category := mux.Vars(r)["category"]
-	threadID := mux.Vars(r)["thread_id"]
+	vars := mux.Vars(r)
+	category := vars["category"]
+	threadID := vars["thread_id"]
 	ctx := r.Context()
 
 	claims, err := ClaimsFromContext(ctx)
@@ -68,9 +69,10 @@ func (svc *Service) CreateCommentHandler(w http.ResponseWriter, r *http.Request)
 
 func (svc *Service) GetCommentHandler(w http.ResponseWriter, r *http.Request) {
 
-	category := mux.Vars(r)["category"]
-	threadID := mux.Vars(r)["thread_id"]
-	commentID := mux.Vars(r)["comment_id"]
+	vars := mux.Vars(r)
+	category := vars["category"]
+	threadID := vars["thread_id"]
+	commentID := vars["comment_id"]
 	ctx := r.Context()
 
 	_, err := ClaimsFromContext(ctx)
@@ -104,9 +106,10 @@ func (svc *Service) GetCommentHandler(w http.ResponseWriter, r *http.Request) {
 
 func (svc *Service) DeleteCommentHandler(w http.ResponseWriter, r *http.Request) {
 
-	category := mux.Vars(r)["category"]
-	threadID := mux.Vars(r)["thread_id"]
-	commentID := mux.Vars(r)["comment_id"]
+	vars := mux.Vars(r)
+	category := vars["category"]
+	threadID := vars["thread_id"]
+	commentID := vars["comment_id"]
 	ctx := r.Context()
 
 	claims, err := ClaimsFromContext(ctx)
@@ -155,9 +158,10 @@ func (svc *Service) DeleteCommentHandler(w http.ResponseWriter, r *http.Request)
 
 func (svc *Service) UpVoteCommentHandler(w http.ResponseWriter, r *http.Request) {
 
-	category := mux.Vars(r)["category"]
-	threadID := mux.Vars(r)["thread_id"]
-	commentID := mux.Vars(r)["comment_id"]
+	vars := mux.Vars(r)
+	category := vars["category"]
+	threadID := vars["thread_id"]
+	commentID := vars["comment_id"]
 	ctx := r.Context()
 
 	claims, err := ClaimsFromContext(ctx)
@@ -195,9 +199,10 @@ func (svc *Service) UpVoteCommentHandler(w http.ResponseWriter, r *http.Request)
 
 func (svc *Service) DownVoteCommentHandler(w http.ResponseWriter, r *http.Request) {
 
-	category := mux.Vars(r)["category"]
-	threadID := mux.Vars(r)["thread_id"]
-	commentID := mux.Vars(r)["comment_id"]
+	vars := mux.Vars(r)
+	category := vars["category"]
+	threadID := vars["thread_id"]
+	commentID := vars["comment_id"]
 	ctx := r.Context()
 
 	claims, err := ClaimsFromContext(ctx)

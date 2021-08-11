@@ -7,6 +7,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/rgynn/klottr/pkg/api"
 	"github.com/rgynn/klottr/pkg/config"
+	"github.com/sirupsen/logrus"
 )
 
 func main() {
@@ -41,16 +42,16 @@ func main() {
 	// Threads
 	v1.HandleFunc("/c/{category}", api.CreateCategoryThreadHandler).Methods(http.MethodPost)
 	v1.HandleFunc("/c/{category}", api.ListCategoryThreadsHandler).Methods(http.MethodGet)
-	v1.HandleFunc("/c/{category}/{thread_id}", api.GetCategoryThreadHandler).Methods(http.MethodGet)
-	v1.HandleFunc("/c/{category}/{thread_id}/upvote", api.UpVoteCategoryThreadHandler).Methods(http.MethodPost)
-	v1.HandleFunc("/c/{category}/{thread_id}/downvote", api.DownVoteCategoryThreadHandler).Methods(http.MethodPost)
+	v1.HandleFunc("/c/{category}/t/{thread_id}", api.GetCategoryThreadHandler).Methods(http.MethodGet)
+	v1.HandleFunc("/c/{category}/t/{thread_id}/upvote", api.UpVoteCategoryThreadHandler).Methods(http.MethodPost)
+	v1.HandleFunc("/c/{category}/t/{thread_id}/downvote", api.DownVoteCategoryThreadHandler).Methods(http.MethodPost)
 
 	// Comments
-	v1.HandleFunc("/c/{category}/{thread_id}/comments", api.CreateCommentHandler).Methods(http.MethodPost)
-	v1.HandleFunc("/c/{category}/{thread_id}/comments/{comment_id}", api.GetCommentHandler).Methods(http.MethodGet)
-	v1.HandleFunc("/c/{category}/{thread_id}/comments/{comment_id}", api.DeleteCommentHandler).Methods(http.MethodDelete)
-	v1.HandleFunc("/c/{category}/{thread_id}/comments/{comment_id}/upvote", api.UpVoteCommentHandler).Methods(http.MethodPost)
-	v1.HandleFunc("/c/{category}/{thread_id}/comments/{comment_id}/downvote", api.DownVoteCommentHandler).Methods(http.MethodPost)
+	v1.HandleFunc("/c/{category}/t/{thread_id}/com", api.CreateCommentHandler).Methods(http.MethodPost)
+	v1.HandleFunc("/c/{category}/t/{thread_id}/com/{comment_id}", api.GetCommentHandler).Methods(http.MethodGet)
+	v1.HandleFunc("/c/{category}/t/{thread_id}/com/{comment_id}", api.DeleteCommentHandler).Methods(http.MethodDelete)
+	v1.HandleFunc("/c/{category}/t/{thread_id}/com/{comment_id}/upvote", api.UpVoteCommentHandler).Methods(http.MethodPost)
+	v1.HandleFunc("/c/{category}/t/{thread_id}/com/{comment_id}/downvote", api.DownVoteCommentHandler).Methods(http.MethodPost)
 
 	srv := &http.Server{
 		IdleTimeout:  cfg.IdleTimeout,
@@ -60,7 +61,7 @@ func main() {
 		Handler:      r,
 	}
 
-	log.Printf("listening on http://%s\n", cfg.Addr)
+	logrus.Infof("Listening on http://%s\n", cfg.Addr)
 	if err := srv.ListenAndServe(); err != nil {
 		log.Fatal(err)
 	}
