@@ -1,191 +1,234 @@
 package api
 
 import (
-	"errors"
 	"net/http"
 
-	"github.com/labstack/echo/v4"
+	"github.com/gorilla/mux"
 	"github.com/rgynn/klottr/pkg/comment"
 	"github.com/rgynn/klottr/pkg/thread"
 )
 
-func (svc *Service) CreateCommentHandler(c echo.Context) error {
+func (svc *Service) CreateCommentHandler(w http.ResponseWriter, r *http.Request) {
 
 	m := new(comment.Model)
-	category := c.Param("category")
-	threadID := c.Param("thread_id")
-	ctx := c.Request().Context()
+	category := mux.Vars(r)["category"]
+	threadID := mux.Vars(r)["thread_id"]
+	ctx := r.Context()
 
-	claims, err := svc.GetClaims(c)
+	claims, err := ClaimsFromContext(ctx)
 	if err != nil {
-		return echo.ErrUnauthorized
+		NewErrorResponse(w, r, http.StatusUnauthorized, err)
+		return
 	}
 
-	if err := c.Bind(m); err != nil {
-		return echo.ErrBadRequest
+	if err := svc.UnmarshalJSONRequest(w, r, &m); err != nil {
+		NewErrorResponse(w, r, http.StatusBadRequest, err)
+		return
 	}
 
 	if err := m.ValidForSave(); err != nil {
-		return echo.ErrBadRequest
+		NewErrorResponse(w, r, http.StatusBadRequest, err)
+		return
 	}
 
 	switch category {
 	case "misc":
 		if _, err := svc.misc.Get(ctx, &threadID); err != nil {
-			return thread.ErrNotFound
+			NewErrorResponse(w, r, http.StatusInternalServerError, err)
+			return
 		}
 	default:
-		return thread.ErrCategoryNotFound
+		NewErrorResponse(w, r, http.StatusInternalServerError, thread.ErrCategoryNotFound)
+		return
 	}
 
 	if err := svc.comments.Create(ctx, m); err != nil {
-		return errors.New("error occured")
+		NewErrorResponse(w, r, http.StatusInternalServerError, err)
+		return
 	}
 
 	switch category {
 	case "misc":
 		if err := svc.misc.IncComments(ctx, &threadID); err != nil {
-			return errors.New("error occured")
+			NewErrorResponse(w, r, http.StatusInternalServerError, err)
+			return
 		}
 	}
 
 	if err := svc.users.IncCommentsCounter(ctx, claims.Username); err != nil {
-		return errors.New("error occured")
+		NewErrorResponse(w, r, http.StatusInternalServerError, err)
+		return
 	}
 
-	return c.NoContent(http.StatusCreated)
+	if err := svc.NoContentResponse(w, http.StatusCreated); err != nil {
+		NewErrorResponse(w, r, http.StatusInternalServerError, err)
+		return
+	}
 }
 
-func (svc *Service) GetCommentHandler(c echo.Context) error {
+func (svc *Service) GetCommentHandler(w http.ResponseWriter, r *http.Request) {
 
-	category := c.Param("category")
-	threadID := c.Param("thread_id")
-	commentID := c.Param("comment_id")
-	ctx := c.Request().Context()
+	category := mux.Vars(r)["category"]
+	threadID := mux.Vars(r)["thread_id"]
+	commentID := mux.Vars(r)["comment_id"]
+	ctx := r.Context()
 
-	_, err := svc.GetClaims(c)
+	_, err := ClaimsFromContext(ctx)
 	if err != nil {
-		return echo.ErrUnauthorized
+		NewErrorResponse(w, r, http.StatusUnauthorized, err)
+		return
 	}
 
 	switch category {
 	case "misc":
 		if _, err := svc.misc.Get(ctx, &threadID); err != nil {
-			return thread.ErrNotFound
+			NewErrorResponse(w, r, http.StatusInternalServerError, err)
+			return
 		}
 	default:
-		return thread.ErrCategoryNotFound
+		NewErrorResponse(w, r, http.StatusInternalServerError, thread.ErrCategoryNotFound)
+		return
 	}
 
 	result, err := svc.comments.Get(ctx, &commentID)
 	if err != nil {
-		return errors.New("error occured")
+		NewErrorResponse(w, r, http.StatusInternalServerError, err)
+		return
 	}
 
-	return c.JSON(http.StatusOK, result)
+	if err := svc.MarshalJSONResponse(w, http.StatusOK, result); err != nil {
+		NewErrorResponse(w, r, http.StatusInternalServerError, err)
+		return
+	}
 }
 
-func (svc *Service) DeleteCommentHandler(c echo.Context) error {
+func (svc *Service) DeleteCommentHandler(w http.ResponseWriter, r *http.Request) {
 
-	category := c.Param("category")
-	threadID := c.Param("thread_id")
-	commentID := c.Param("comment_id")
-	ctx := c.Request().Context()
+	category := mux.Vars(r)["category"]
+	threadID := mux.Vars(r)["thread_id"]
+	commentID := mux.Vars(r)["comment_id"]
+	ctx := r.Context()
 
-	claims, err := svc.GetClaims(c)
+	claims, err := ClaimsFromContext(ctx)
 	if err != nil {
-		return echo.ErrUnauthorized
+		NewErrorResponse(w, r, http.StatusUnauthorized, err)
+		return
 	}
 
 	switch category {
 	case "misc":
 		if _, err := svc.misc.Get(ctx, &threadID); err != nil {
-			return thread.ErrNotFound
+			NewErrorResponse(w, r, http.StatusInternalServerError, err)
+			return
 		}
 	default:
-		return thread.ErrCategoryNotFound
+		NewErrorResponse(w, r, http.StatusNotFound, thread.ErrCategoryNotFound)
+		return
 	}
 
 	cmnt, err := svc.comments.Get(ctx, &commentID)
 	if err != nil {
-		return errors.New("error occured")
+		NewErrorResponse(w, r, http.StatusInternalServerError, err)
+		return
 	}
 
 	if cmnt.UserID.String() != *claims.UserID {
-		return echo.ErrUnauthorized
+		NewErrorResponse(w, r, http.StatusUnauthorized, err)
+		return
 	}
 
 	if err := svc.comments.Delete(ctx, &commentID); err != nil {
-		return errors.New("error occured")
+		NewErrorResponse(w, r, http.StatusInternalServerError, err)
+		return
 	}
 
 	if err := svc.users.DecCommentsCounter(ctx, claims.UserID); err != nil {
-		return errors.New("error occured")
+		NewErrorResponse(w, r, http.StatusInternalServerError, err)
+		return
 	}
 
-	return c.NoContent(http.StatusAccepted)
+	if err := svc.NoContentResponse(w, http.StatusAccepted); err != nil {
+		NewErrorResponse(w, r, http.StatusInternalServerError, err)
+		return
+	}
 }
 
-func (svc *Service) UpVoteCommentHandler(c echo.Context) error {
+func (svc *Service) UpVoteCommentHandler(w http.ResponseWriter, r *http.Request) {
 
-	category := c.Param("category")
-	threadID := c.Param("thread_id")
-	commentID := c.Param("comment_id")
-	ctx := c.Request().Context()
+	category := mux.Vars(r)["category"]
+	threadID := mux.Vars(r)["thread_id"]
+	commentID := mux.Vars(r)["comment_id"]
+	ctx := r.Context()
 
-	claims, err := svc.GetClaims(c)
+	claims, err := ClaimsFromContext(ctx)
 	if err != nil {
-		return echo.ErrUnauthorized
+		NewErrorResponse(w, r, http.StatusUnauthorized, err)
+		return
 	}
 
 	switch category {
 	case "misc":
 		if _, err := svc.misc.Get(ctx, &threadID); err != nil {
-			return thread.ErrNotFound
+			NewErrorResponse(w, r, http.StatusInternalServerError, err)
+			return
 		}
 	default:
-		return thread.ErrCategoryNotFound
+		NewErrorResponse(w, r, http.StatusNotFound, thread.ErrCategoryNotFound)
+		return
 	}
 
 	if err := svc.comments.IncVotes(ctx, &commentID); err != nil {
-		return errors.New("error occured")
+		NewErrorResponse(w, r, http.StatusInternalServerError, err)
+		return
 	}
 
 	if err := svc.users.IncCommentsVotes(ctx, claims.Username); err != nil {
-		return errors.New("error occured")
+		NewErrorResponse(w, r, http.StatusInternalServerError, err)
+		return
 	}
 
-	return c.NoContent(http.StatusAccepted)
+	if err := svc.NoContentResponse(w, http.StatusAccepted); err != nil {
+		NewErrorResponse(w, r, http.StatusInternalServerError, err)
+		return
+	}
 }
 
-func (svc *Service) DownVoteCommentHandler(c echo.Context) error {
+func (svc *Service) DownVoteCommentHandler(w http.ResponseWriter, r *http.Request) {
 
-	category := c.Param("category")
-	threadID := c.Param("thread_id")
-	commentID := c.Param("comment_id")
-	ctx := c.Request().Context()
+	category := mux.Vars(r)["category"]
+	threadID := mux.Vars(r)["thread_id"]
+	commentID := mux.Vars(r)["comment_id"]
+	ctx := r.Context()
 
-	claims, err := svc.GetClaims(c)
+	claims, err := ClaimsFromContext(ctx)
 	if err != nil {
-		return echo.ErrUnauthorized
+		NewErrorResponse(w, r, http.StatusUnauthorized, err)
+		return
 	}
 
 	switch category {
 	case "misc":
 		if _, err := svc.misc.Get(ctx, &threadID); err != nil {
-			return thread.ErrNotFound
+			NewErrorResponse(w, r, http.StatusInternalServerError, err)
+			return
 		}
 	default:
-		return thread.ErrCategoryNotFound
+		NewErrorResponse(w, r, http.StatusNotFound, thread.ErrCategoryNotFound)
+		return
 	}
 
 	if err := svc.comments.DecVotes(ctx, &commentID); err != nil {
-		return errors.New("error occured")
+		NewErrorResponse(w, r, http.StatusInternalServerError, err)
+		return
 	}
 
 	if err := svc.users.DecCommentsVotes(ctx, claims.Username); err != nil {
-		return errors.New("error occured")
+		NewErrorResponse(w, r, http.StatusInternalServerError, err)
+		return
 	}
 
-	return c.NoContent(http.StatusAccepted)
+	if err := svc.NoContentResponse(w, http.StatusAccepted); err != nil {
+		NewErrorResponse(w, r, http.StatusInternalServerError, err)
+		return
+	}
 }

@@ -2,9 +2,9 @@ package main
 
 import (
 	"log"
+	"net/http"
 
-	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
+	"github.com/gorilla/mux"
 	"github.com/rgynn/klottr/pkg/api"
 	"github.com/rgynn/klottr/pkg/config"
 )
@@ -21,64 +21,47 @@ func main() {
 		log.Fatal(err)
 	}
 
-	e := echo.New()
+	r := mux.NewRouter()
 
-	e.Debug = cfg.Debug
-	e.Server.IdleTimeout = cfg.IdleTimeout
-	e.Server.ReadTimeout = cfg.ReadTimeout
-	e.Server.WriteTimeout = cfg.WriteTimeout
-
-	e.Use(
-		middleware.RequestID(),
-		middleware.Logger(),
-		middleware.BodyDump(api.BodyDumpFunc),
-		middleware.Gzip(),
-		middleware.BodyLimit("100K"),
-		middleware.CORSWithConfig(middleware.CORSConfig{
-			AllowOrigins: cfg.CORSAllowOrigins,
-			AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept},
-		}),
+	r.Use(
+		api.RequestIDMiddleware,
+		api.ContextLoggerMiddleware,
 	)
 
-	e.POST("/auth/signin", api.SignInHandler)
-	e.POST("/auth/signup", api.SignUpHandler)
-	e.DELETE("/auth/deactivate", api.DeactivateHandler)
+	r.HandleFunc("/auth/signin", api.SignInHandler).Methods(http.MethodPost)
+	r.HandleFunc("/auth/signup", api.SignUpHandler).Methods(http.MethodPost)
+	r.HandleFunc("/auth/deactivate", api.DeactivateHandler).Methods(http.MethodDelete)
 
-	v1 := e.Group("/api/1.0")
+	v1 := r.PathPrefix("/api/1.0").Subrouter()
 
 	v1.Use(
-		middleware.JWTWithConfig(middleware.JWTConfig{
-			SigningKey:  []byte(cfg.JWTSecret),
-			TokenLookup: "header:" + echo.HeaderAuthorization,
-			AuthScheme:  "Bearer",
-		}),
+		api.JWTMiddleware,
 	)
 
-	// Users
-	v1.GET("/users", api.SearchUsersHandler)
-	v1.GET("/users/:username", api.GetAdminUserHandler)
-
-	// Admin Users
-	v1.POST("/admin/users", api.CreateAdminUserHandler)
-	v1.GET("/admin/users", api.SearchAdminUsersHandler)
-	v1.GET("/admin/users/:username", api.GetAdminUserHandler)
-	v1.DELETE("/admin/users/:username", api.DeleteAdminUserHandler)
-
 	// Threads
-	v1.POST("/:category", api.CreateCategoryThreadHandler)
-	v1.GET("/:category", api.ListCategoryThreadsHandler)
-	v1.GET("/:category/:thread_id", api.GetCategoryThreadHandler)
-	v1.POST("/:category/:thread_id/upvote", api.UpVoteCategoryThreadHandler)
-	v1.POST("/:category/:thread_id/downvote", api.DownVoteCategoryThreadHandler)
+	v1.HandleFunc("/c/{category}", api.CreateCategoryThreadHandler).Methods(http.MethodPost)
+	v1.HandleFunc("/c/{category}", api.ListCategoryThreadsHandler).Methods(http.MethodGet)
+	v1.HandleFunc("/c/{category}/{thread_id}", api.GetCategoryThreadHandler).Methods(http.MethodGet)
+	v1.HandleFunc("/c/{category}/{thread_id}/upvote", api.UpVoteCategoryThreadHandler).Methods(http.MethodPost)
+	v1.HandleFunc("/c/{category}/{thread_id}/downvote", api.DownVoteCategoryThreadHandler).Methods(http.MethodPost)
 
 	// Comments
-	v1.POST("/:category/:thread_id/comments", api.CreateCommentHandler)
-	v1.GET("/:category/:thread_id/comments/:comment_id", api.GetCommentHandler)
-	v1.DELETE("/:category/:thread_id/comments/:comment_id", api.DeleteCommentHandler)
-	v1.POST("/:category/:thread_id/comments/:comment_id/upvote", api.UpVoteCommentHandler)
-	v1.POST("/:category/:thread_id/comments/:comment_id/downvote", api.DownVoteCommentHandler)
+	v1.HandleFunc("/c/{category}/{thread_id}/comments", api.CreateCommentHandler).Methods(http.MethodPost)
+	v1.HandleFunc("/c/{category}/{thread_id}/comments/{comment_id}", api.GetCommentHandler).Methods(http.MethodGet)
+	v1.HandleFunc("/c/{category}/{thread_id}/comments/{comment_id}", api.DeleteCommentHandler).Methods(http.MethodDelete)
+	v1.HandleFunc("/c/{category}/{thread_id}/comments/{comment_id}/upvote", api.UpVoteCommentHandler).Methods(http.MethodPost)
+	v1.HandleFunc("/c/{category}/{thread_id}/comments/{comment_id}/downvote", api.DownVoteCommentHandler).Methods(http.MethodPost)
 
-	if err := e.Start(cfg.Addr); err != nil {
+	srv := &http.Server{
+		IdleTimeout:  cfg.IdleTimeout,
+		ReadTimeout:  cfg.ReadTimeout,
+		WriteTimeout: cfg.WriteTimeout,
+		Addr:         cfg.Addr,
+		Handler:      r,
+	}
+
+	log.Printf("listening on http://%s\n", cfg.Addr)
+	if err := srv.ListenAndServe(); err != nil {
 		log.Fatal(err)
 	}
 }

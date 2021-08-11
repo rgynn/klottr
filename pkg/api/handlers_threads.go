@@ -1,32 +1,34 @@
 package api
 
 import (
-	"errors"
 	"net/http"
 	"strconv"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/gorilla/mux"
 	"github.com/rgynn/klottr/pkg/thread"
 	"github.com/rgynn/ptrconv"
 )
 
-func (svc *Service) CreateCategoryThreadHandler(c echo.Context) error {
+func (svc *Service) CreateCategoryThreadHandler(w http.ResponseWriter, r *http.Request) {
 
 	m := new(thread.Model)
-	ctx := c.Request().Context()
+	ctx := r.Context()
 
-	_, err := svc.GetClaims(c)
+	_, err := ClaimsFromContext(ctx)
 	if err != nil {
-		return echo.ErrUnauthorized
+		NewErrorResponse(w, r, http.StatusUnauthorized, err)
+		return
 	}
 
-	if err := c.Bind(m); err != nil {
-		return echo.ErrBadRequest
+	if err := svc.UnmarshalJSONRequest(w, r, &m); err != nil {
+		NewErrorResponse(w, r, http.StatusBadRequest, err)
+		return
 	}
 
 	if err := m.ValidForSave(); err != nil {
-		return echo.ErrBadRequest
+		NewErrorResponse(w, r, http.StatusBadRequest, err)
+		return
 	}
 
 	m.Created = ptrconv.TimePtr(time.Now().UTC())
@@ -34,113 +36,144 @@ func (svc *Service) CreateCategoryThreadHandler(c echo.Context) error {
 	switch *m.Category {
 	case "misc":
 		if err := svc.misc.Create(ctx, m); err != nil {
-			c.Logger().Errorf("Failed to create %s thread in repository: %s", *m.Category, err.Error())
-			return errors.New("error occured")
+			NewErrorResponse(w, r, http.StatusInternalServerError, err)
+			return
 		}
 	default:
-		return errors.New("error occured")
+		NewErrorResponse(w, r, http.StatusNotFound, thread.ErrCategoryNotFound)
+		return
 	}
 
-	return c.NoContent(http.StatusCreated)
+	if err := svc.NoContentResponse(w, http.StatusCreated); err != nil {
+		NewErrorResponse(w, r, http.StatusInternalServerError, err)
+		return
+	}
 }
 
-func (svc *Service) ListCategoryThreadsHandler(c echo.Context) error {
+func (svc *Service) ListCategoryThreadsHandler(w http.ResponseWriter, r *http.Request) {
 
-	category := c.Param("category")
-	ctx := c.Request().Context()
+	category := mux.Vars(r)["category"]
+	ctx := r.Context()
 
-	_, err := svc.GetClaims(c)
+	_, err := ClaimsFromContext(ctx)
 	if err != nil {
-		return echo.ErrUnauthorized
+		NewErrorResponse(w, r, http.StatusUnauthorized, err)
+		return
 	}
 
-	from, err := strconv.ParseInt(c.QueryParam("from"), 10, 64)
+	from, err := strconv.ParseInt(r.URL.Query().Get("from"), 10, 64)
 	if err != nil {
 		from = 0
 	}
 
-	size, err := strconv.ParseInt(c.QueryParam("size"), 10, 64)
+	size, err := strconv.ParseInt(r.URL.Query().Get("size"), 10, 64)
 	if err != nil || size < 1 {
 		size = 100
 	}
 
-	switch category {
-	case "misc":
-		result, err := svc.misc.List(ctx, from, size)
-		if err != nil {
-			c.Logger().Errorf("Failed to list %s threads in repository: %s", category, err.Error())
-			return errors.New("error occured")
-		}
-		return c.JSON(http.StatusOK, result)
-	default:
-		return c.JSON(http.StatusNotFound, echo.Map{"message": thread.ErrCategoryNotFound.Error()})
-	}
-}
-
-func (svc *Service) GetCategoryThreadHandler(c echo.Context) error {
-
-	category := c.Param("category")
-	id := c.Param("thread_id")
-	ctx := c.Request().Context()
-
-	_, err := svc.GetClaims(c)
-	if err != nil {
-		return echo.ErrUnauthorized
-	}
+	result := []*thread.Model{}
 
 	switch category {
 	case "misc":
-		result, err := svc.misc.Get(ctx, &id)
+		result, err = svc.misc.List(ctx, from, size)
 		if err != nil {
-			c.Logger().Warnf("Failed to get thread: %s in %s thread repository: %s", id, category, err.Error())
-			return errors.New("error occured")
+			NewErrorResponse(w, r, http.StatusInternalServerError, err)
+			return
 		}
-		return c.JSON(http.StatusOK, result)
 	default:
-		return errors.New("error occured")
+		NewErrorResponse(w, r, http.StatusNotFound, thread.ErrCategoryNotFound)
+		return
+	}
+
+	if err := svc.MarshalJSONResponse(w, http.StatusOK, &result); err != nil {
+		NewErrorResponse(w, r, http.StatusInternalServerError, err)
+		return
 	}
 }
 
-func (svc *Service) UpVoteCategoryThreadHandler(c echo.Context) error {
+func (svc *Service) GetCategoryThreadHandler(w http.ResponseWriter, r *http.Request) {
 
-	category := c.Param("category")
-	id := c.Param("thread_id")
-	ctx := c.Request().Context()
+	category := mux.Vars(r)["category"]
+	id := mux.Vars(r)["thread_id"]
+	ctx := r.Context()
 
-	_, err := svc.GetClaims(c)
+	_, err := ClaimsFromContext(ctx)
 	if err != nil {
-		return echo.ErrUnauthorized
+		NewErrorResponse(w, r, http.StatusUnauthorized, err)
+		return
+	}
+
+	result := new(thread.Model)
+
+	switch category {
+	case "misc":
+		result, err = svc.misc.Get(ctx, &id)
+		if err != nil {
+			NewErrorResponse(w, r, http.StatusInternalServerError, err)
+			return
+		}
+	default:
+		NewErrorResponse(w, r, http.StatusNotFound, thread.ErrCategoryNotFound)
+		return
+	}
+
+	if err := svc.MarshalJSONResponse(w, http.StatusOK, &result); err != nil {
+		NewErrorResponse(w, r, http.StatusInternalServerError, err)
+		return
+	}
+}
+
+func (svc *Service) UpVoteCategoryThreadHandler(w http.ResponseWriter, r *http.Request) {
+
+	category := mux.Vars(r)["category"]
+	id := mux.Vars(r)["thread_id"]
+	ctx := r.Context()
+
+	_, err := ClaimsFromContext(ctx)
+	if err != nil {
+		NewErrorResponse(w, r, http.StatusUnauthorized, err)
+		return
 	}
 
 	switch category {
 	case "misc":
 		if err := svc.misc.IncVote(ctx, &id); err != nil {
-			c.Logger().Warnf("Failed to increment votes on thread: %s in %s thread repository: %s", id, category, err.Error())
-			return errors.New("error occured")
+			NewErrorResponse(w, r, http.StatusInternalServerError, err)
+			return
 		}
 	}
 
-	return c.NoContent(http.StatusAccepted)
+	if err := svc.NoContentResponse(w, http.StatusAccepted); err != nil {
+		NewErrorResponse(w, r, http.StatusInternalServerError, err)
+		return
+	}
 }
 
-func (svc *Service) DownVoteCategoryThreadHandler(c echo.Context) error {
+func (svc *Service) DownVoteCategoryThreadHandler(w http.ResponseWriter, r *http.Request) {
 
-	category := c.Param("category")
-	id := c.Param("thread_id")
-	ctx := c.Request().Context()
+	category := mux.Vars(r)["category"]
+	id := mux.Vars(r)["thread_id"]
+	ctx := r.Context()
 
-	_, err := svc.GetClaims(c)
+	_, err := ClaimsFromContext(ctx)
 	if err != nil {
-		return echo.ErrUnauthorized
+		NewErrorResponse(w, r, http.StatusUnauthorized, err)
+		return
 	}
 
 	switch category {
 	case "misc":
 		if err := svc.misc.DecVote(ctx, &id); err != nil {
-			c.Logger().Warnf("Failed to decrement votes on thread: %s in %s thread repository: %s", id, category, err.Error())
-			return errors.New("error occured")
+			NewErrorResponse(w, r, http.StatusInternalServerError, err)
+			return
 		}
+	default:
+		NewErrorResponse(w, r, http.StatusNotFound, thread.ErrCategoryNotFound)
+		return
 	}
 
-	return c.NoContent(http.StatusAccepted)
+	if err := svc.NoContentResponse(w, http.StatusAccepted); err != nil {
+		NewErrorResponse(w, r, http.StatusInternalServerError, err)
+		return
+	}
 }

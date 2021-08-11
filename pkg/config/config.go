@@ -12,18 +12,18 @@ import (
 )
 
 type Config struct {
-	Debug            bool
-	Addr             string
-	RequestBodyLimit string
-	RequestTimeout   time.Duration
-	IdleTimeout      time.Duration
-	ReadTimeout      time.Duration
-	WriteTimeout     time.Duration
-	PostTTL          time.Duration
-	CORSAllowOrigins []string
-	DatabaseName     string
-	DatabaseURL      string
-	JWTSecret        string
+	Debug                 bool
+	Addr                  string
+	RequestBodyLimitBytes int64
+	RequestTimeout        time.Duration
+	IdleTimeout           time.Duration
+	ReadTimeout           time.Duration
+	WriteTimeout          time.Duration
+	PostTTL               time.Duration
+	CORSAllowOrigins      []string
+	DatabaseName          string
+	DatabaseURL           string
+	JWTSecret             string
 }
 
 func NewFromEnv(filenames ...string) (*Config, error) {
@@ -42,9 +42,9 @@ func NewFromEnv(filenames ...string) (*Config, error) {
 		return nil, errors.New("no PORT env variable set")
 	}
 
-	reqBodyLimit := os.Getenv("REQBODYLIMIT")
-	if reqBodyLimit == "" {
-		return nil, errors.New("no REQBODYLIMIT env variable set")
+	reqBodyLimit, err := strconv.ParseInt(os.Getenv("REQBODYLIMIT_BYTES"), 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse REQBODYLIMIT_BYTES env variable to int64: %w", err)
 	}
 
 	debug, err := strconv.ParseBool(os.Getenv("DEBUG"))
@@ -95,17 +95,17 @@ func NewFromEnv(filenames ...string) (*Config, error) {
 	}
 
 	return &Config{
-		Debug:            debug,
-		Addr:             fmt.Sprintf("%s:%s", host, port),
-		RequestBodyLimit: reqBodyLimit,
-		RequestTimeout:   reqTimeout,
-		IdleTimeout:      idleTimeout,
-		ReadTimeout:      readTimeout,
-		WriteTimeout:     writeTimeout,
-		CORSAllowOrigins: corsAllowOrigins,
-		PostTTL:          postTTL,
-		DatabaseName:     dbName,
-		DatabaseURL:      dbURL,
-		JWTSecret:        jwtSecret,
+		Debug:                 debug,
+		Addr:                  fmt.Sprintf("%s:%s", host, port),
+		RequestBodyLimitBytes: reqBodyLimit,
+		RequestTimeout:        reqTimeout,
+		IdleTimeout:           idleTimeout,
+		ReadTimeout:           readTimeout,
+		WriteTimeout:          writeTimeout,
+		CORSAllowOrigins:      corsAllowOrigins,
+		PostTTL:               postTTL,
+		DatabaseName:          dbName,
+		DatabaseURL:           dbURL,
+		JWTSecret:             jwtSecret,
 	}, nil
 }

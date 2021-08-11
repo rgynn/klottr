@@ -45,13 +45,13 @@ type Counter struct {
 }
 
 type Model struct {
-	ID           *primitive.ObjectID `json:"id" bson:"_id"`
+	ID           *primitive.ObjectID `json:"id" bson:"_id,omitempty"`
 	Role         *string             `json:"role" bson:"role"`
 	Validated    bool                `json:"validated,omitempty"  bson:"validated,omitempty"`
 	Username     *string             `json:"username,omitempty"  bson:"username,omitempty"`
-	Password     *string             `json:"password,omitempty"  bson:"_"`
+	Password     *string             `json:"password,omitempty"  bson:"password,omitempty"`
 	PasswordHash *string             `json:"password_hash,omitempty"  bson:"password_hash,omitempty"`
-	Email        *string             `json:"email,omitempty"  bson:"_"`
+	Email        *string             `json:"email,omitempty"  bson:"email,omitempty"`
 	EmailHash    *string             `json:"email_hash,omitempty"  bson:"email_hash,omitempty"`
 	Counters     Counters            `json:"counters"  bson:"counters"`
 	Created      *time.Time          `json:"created"  bson:"created"`

@@ -23,6 +23,10 @@ type Repository struct {
 
 func NewRepository(cfg *config.Config, category string) (thread.Repository, error) {
 
+	if cfg == nil {
+		return nil, errors.New("no cfg *config.Config provided")
+	}
+
 	if category == "" {
 		return nil, errors.New("must supply a category for thread repisotory")
 	}

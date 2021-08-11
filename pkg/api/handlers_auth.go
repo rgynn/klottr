@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt"
-	"github.com/labstack/echo/v4"
+	"github.com/gorilla/mux"
 	"github.com/rgynn/klottr/pkg/user"
 	"github.com/rgynn/ptrconv"
 )
@@ -33,59 +33,30 @@ func (input *LoginInput) Valid() error {
 	return nil
 }
 
-type JWTClaims struct {
-	Username  *string       `json:"username"`
-	UserID    *string       `json:"userID"`
-	Role      *string       `json:"role"`
-	Validated bool          `json:"validated"`
-	Counters  user.Counters `json:"counters"`
-	jwt.StandardClaims
-}
-
-func (claims *JWTClaims) IsAdmin() bool {
-	return ptrconv.StringPtrString(claims.Role) == "admin"
-}
-
-func (claims *JWTClaims) IsUser() bool {
-	return ptrconv.StringPtrString(claims.Role) == "user"
-}
-
-func (svc *Service) GetClaims(c echo.Context) (*JWTClaims, error) {
-
-	user, ok := c.Get("user").(*jwt.Token)
-	if !ok {
-		return nil, errors.New("failed to type assert *jwt.Token from context")
-	}
-
-	claims, ok := user.Claims.(*JWTClaims)
-	if !ok {
-		return nil, errors.New("failed to type assert JWTClaims from context")
-	}
-
-	return claims, nil
-}
-
-func (svc *Service) SignInHandler(c echo.Context) error {
+func (svc *Service) SignInHandler(w http.ResponseWriter, r *http.Request) {
 
 	m := new(LoginInput)
-	ctx := c.Request().Context()
+	ctx := r.Context()
 
-	if err := c.Bind(m); err != nil {
-		return errors.New("error occured")
+	if err := svc.UnmarshalJSONRequest(w, r, &m); err != nil {
+		NewErrorResponse(w, r, http.StatusBadRequest, err)
+		return
 	}
 
 	if err := m.Valid(); err != nil {
-		return echo.ErrBadRequest
+		NewErrorResponse(w, r, http.StatusBadRequest, err)
+		return
 	}
 
 	u, err := svc.users.Get(ctx, m.Username)
 	if err != nil {
-		c.Logger().Warnf("Failed to find user: %s", err.Error())
-		return errors.New("error occured")
+		NewErrorResponse(w, r, http.StatusInternalServerError, err)
+		return
 	}
 
 	if err := u.ValidPassword(m.Password); err != nil {
-		return echo.ErrUnauthorized
+		NewErrorResponse(w, r, http.StatusUnauthorized, err)
+		return
 	}
 
 	claims := &JWTClaims{
@@ -99,65 +70,79 @@ func (svc *Service) SignInHandler(c echo.Context) error {
 		},
 	}
 
-	t, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(svc.cfg.JWTSecret))
+	token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(svc.cfg.JWTSecret))
 	if err != nil {
-		return echo.ErrUnauthorized
+		NewErrorResponse(w, r, http.StatusUnauthorized, err)
+		return
 	}
 
-	return c.JSON(http.StatusOK, echo.Map{
-		"token": t,
-	})
+	if err := svc.MarshalJSONResponse(w, http.StatusOK, map[string]string{"token": token}); err != nil {
+		NewErrorResponse(w, r, http.StatusInternalServerError, err)
+		return
+	}
 }
 
-func (svc *Service) SignUpHandler(c echo.Context) error {
+func (svc *Service) SignUpHandler(w http.ResponseWriter, r *http.Request) {
 
 	m := new(user.Model)
-	ctx := c.Request().Context()
+	ctx := r.Context()
 
-	if err := c.Bind(m); err != nil {
-		return echo.ErrBadRequest
+	if err := svc.UnmarshalJSONRequest(w, r, &m); err != nil {
+		NewErrorResponse(w, r, http.StatusBadRequest, err)
+		return
 	}
 
 	m.Role = ptrconv.StringPtr("user")
 
 	if err := m.HashPassword(); err != nil {
-		return echo.ErrBadRequest
+		NewErrorResponse(w, r, http.StatusBadRequest, err)
+		return
 	}
 
 	if err := m.HashEmail(); err != nil {
-		return echo.ErrBadRequest
+		NewErrorResponse(w, r, http.StatusBadRequest, err)
+		return
 	}
 
 	if err := m.ValidForSave(); err != nil {
-		return echo.ErrBadRequest
+		NewErrorResponse(w, r, http.StatusBadRequest, err)
+		return
 	}
 
 	if err := svc.users.Create(ctx, m); err != nil {
-		c.Logger().Warnf("Failed to create user in users repository: %s", err.Error())
-		return errors.New("error occured")
+		NewErrorResponse(w, r, http.StatusInternalServerError, err)
+		return
 	}
 
-	return c.NoContent(http.StatusCreated)
+	if err := svc.NoContentResponse(w, http.StatusAccepted); err != nil {
+		NewErrorResponse(w, r, http.StatusInternalServerError, err)
+		return
+	}
 }
 
-func (svc *Service) DeactivateHandler(c echo.Context) error {
+func (svc *Service) DeactivateHandler(w http.ResponseWriter, r *http.Request) {
 
-	username := c.Param("username")
-	ctx := c.Request().Context()
+	username := mux.Vars(r)["username"]
+	ctx := r.Context()
 
-	claims, err := svc.GetClaims(c)
+	claims, err := ClaimsFromContext(ctx)
 	if err != nil {
-		return echo.ErrUnauthorized
+		NewErrorResponse(w, r, http.StatusUnauthorized, err)
+		return
 	}
 
 	if claims.Username == nil || *claims.Username != username {
-		return echo.ErrUnauthorized
+		NewErrorResponse(w, r, http.StatusUnauthorized, err)
+		return
 	}
 
 	if err := svc.users.Delete(ctx, claims.Username, claims.Role); err != nil {
-		c.Logger().Warnf("Failed to delete user with username: %s, error: %s", *claims.Username, err.Error())
-		return errors.New("error occured")
+		NewErrorResponse(w, r, http.StatusInternalServerError, err)
+		return
 	}
 
-	return c.NoContent(http.StatusAccepted)
+	if err := svc.NoContentResponse(w, http.StatusAccepted); err != nil {
+		NewErrorResponse(w, r, http.StatusInternalServerError, err)
+		return
+	}
 }

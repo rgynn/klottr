@@ -1,47 +1,50 @@
 package api
 
 import (
-	"errors"
 	"net/http"
 	"strconv"
 
-	"github.com/labstack/echo/v4"
 	"github.com/rgynn/ptrconv"
 )
 
-func (svc *Service) SearchUsersHandler(c echo.Context) error {
+func (svc *Service) SearchUsersHandler(w http.ResponseWriter, r *http.Request) {
 
-	ctx := c.Request().Context()
+	ctx := r.Context()
 
 	var username *string
-	if uname := c.QueryParam("username"); uname != "" {
+	if uname := r.URL.Query().Get("username"); uname != "" {
 		username = &uname
 	}
 
-	from, err := strconv.ParseInt(c.QueryParam("from"), 10, 64)
+	from, err := strconv.ParseInt(r.URL.Query().Get("from"), 10, 64)
 	if err != nil {
 		from = 0
 	}
 
-	size, err := strconv.ParseInt(c.QueryParam("size"), 10, 64)
+	size, err := strconv.ParseInt(r.URL.Query().Get("size"), 10, 64)
 	if err != nil || size < 1 {
 		size = 100
 	}
 
-	claims, err := svc.GetClaims(c)
+	claims, err := ClaimsFromContext(ctx)
 	if err != nil {
-		return echo.ErrUnauthorized
+		NewErrorResponse(w, r, http.StatusUnauthorized, err)
+		return
 	}
 
 	if claims.IsUser() {
-		return echo.ErrUnauthorized
+		NewErrorResponse(w, r, http.StatusUnauthorized, err)
+		return
 	}
 
 	result, err := svc.users.Search(ctx, username, ptrconv.StringPtr("user"), from, size)
 	if err != nil {
-		c.Logger().Warnf("Failed to search for users: %s", err.Error())
-		return errors.New("error occured")
+		NewErrorResponse(w, r, http.StatusInternalServerError, err)
+		return
 	}
 
-	return c.JSON(http.StatusOK, result)
+	if err := svc.MarshalJSONResponse(w, http.StatusOK, result); err != nil {
+		NewErrorResponse(w, r, http.StatusInternalServerError, err)
+		return
+	}
 }
