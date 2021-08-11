@@ -102,7 +102,8 @@ func (svc *Service) GetCategoryThreadHandler(w http.ResponseWriter, r *http.Requ
 
 	vars := mux.Vars(r)
 	category := vars["category"]
-	id := vars["thread_id"]
+	slugID := vars["slug_id"]
+	slugTitle := vars["slug_title"]
 	ctx := r.Context()
 
 	logger, err := LoggerFromContext(ctx)
@@ -115,7 +116,7 @@ func (svc *Service) GetCategoryThreadHandler(w http.ResponseWriter, r *http.Requ
 
 	switch category {
 	case "misc":
-		result, err = svc.misc.Get(ctx, &id)
+		result, err = svc.misc.Get(ctx, &slugID, &slugTitle)
 	default:
 		NewErrorResponse(w, r, http.StatusNotFound, thread.ErrCategoryNotFound)
 		return
@@ -137,7 +138,8 @@ func (svc *Service) UpVoteCategoryThreadHandler(w http.ResponseWriter, r *http.R
 
 	vars := mux.Vars(r)
 	category := vars["category"]
-	id := vars["thread_id"]
+	slugID := vars["slug_id"]
+	slugTitle := vars["slug_title"]
 	ctx := r.Context()
 
 	logger, err := LoggerFromContext(ctx)
@@ -148,7 +150,7 @@ func (svc *Service) UpVoteCategoryThreadHandler(w http.ResponseWriter, r *http.R
 
 	switch category {
 	case "misc":
-		if err := svc.misc.IncVote(ctx, &id); err != nil {
+		if err := svc.misc.IncVote(ctx, &slugID, &slugTitle); err != nil {
 			logger.Errorf("Failed to upvote misc thread: %s", err.Error())
 			NewErrorResponse(w, r, http.StatusInternalServerError, err)
 			return
@@ -165,7 +167,8 @@ func (svc *Service) DownVoteCategoryThreadHandler(w http.ResponseWriter, r *http
 
 	vars := mux.Vars(r)
 	category := vars["category"]
-	id := vars["thread_id"]
+	slugID := vars["slug_id"]
+	slugTitle := vars["slug_title"]
 	ctx := r.Context()
 
 	logger, err := LoggerFromContext(ctx)
@@ -176,7 +179,7 @@ func (svc *Service) DownVoteCategoryThreadHandler(w http.ResponseWriter, r *http
 
 	switch category {
 	case "misc":
-		if err := svc.misc.DecVote(ctx, &id); err != nil {
+		if err := svc.misc.DecVote(ctx, &slugID, &slugTitle); err != nil {
 			logger.Errorf("Failed to upvote misc thread: %s", err.Error())
 			NewErrorResponse(w, r, http.StatusInternalServerError, err)
 			return

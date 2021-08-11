@@ -51,40 +51,6 @@ func NewRepository(cfg *config.Config, category string) (thread.Repository, erro
 	}, nil
 }
 
-func (repo *Repository) Create(ctx context.Context, m *thread.Model) error {
-
-	if m == nil {
-		return errors.New("no m *thread.Model provided")
-	}
-
-	ctx, cancel := context.WithTimeout(ctx, repo.cfg.RequestTimeout)
-	defer cancel()
-
-	_, err := repo.client.Database(repo.database).Collection(repo.collection).InsertOne(ctx, m)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (repo *Repository) Get(ctx context.Context, id *string) (*thread.Model, error) {
-
-	if id == nil {
-		return nil, errors.New("no id provided")
-	}
-
-	ctx, cancel := context.WithTimeout(ctx, repo.cfg.RequestTimeout)
-	defer cancel()
-
-	var result *thread.Model
-	if err := repo.client.Database(repo.database).Collection(repo.collection).FindOne(ctx, bson.D{primitive.E{Key: "_id", Value: *id}}).Decode(&result); err != nil {
-		return nil, err
-	}
-
-	return result, nil
-}
-
 func (repo *Repository) List(ctx context.Context, from, size int64) ([]*thread.Model, error) {
 
 	ctx, cancel := context.WithTimeout(ctx, repo.cfg.RequestTimeout)
@@ -103,18 +69,66 @@ func (repo *Repository) List(ctx context.Context, from, size int64) ([]*thread.M
 	return result, nil
 }
 
-func (repo *Repository) Delete(ctx context.Context, id *string) error {
+func (repo *Repository) Create(ctx context.Context, m *thread.Model) error {
 
-	if id == nil {
-		return errors.New("no id provided")
+	if m == nil {
+		return errors.New("no m *thread.Model provided")
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, repo.cfg.RequestTimeout)
 	defer cancel()
 
-	res, err := repo.client.Database(repo.database).Collection(repo.collection).DeleteOne(ctx, bson.D{
-		primitive.E{Key: "_id", Value: *id},
-	})
+	_, err := repo.client.Database(repo.database).Collection(repo.collection).InsertOne(ctx, m)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (repo *Repository) Get(ctx context.Context, slugID, slugTitle *string) (*thread.Model, error) {
+
+	if slugID == nil {
+		return nil, errors.New("no slugID provided")
+	}
+
+	filter := bson.D{
+		primitive.E{Key: "slug_id", Value: *slugID},
+	}
+
+	if slugTitle != nil {
+		filter = append(filter, primitive.E{Key: "slug_title", Value: *slugTitle})
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, repo.cfg.RequestTimeout)
+	defer cancel()
+
+	var result *thread.Model
+	if err := repo.client.Database(repo.database).Collection(repo.collection).FindOne(ctx, filter).Decode(&result); err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func (repo *Repository) Delete(ctx context.Context, slugID, slugTitle *string) error {
+
+	if slugID == nil {
+		return errors.New("no slugID provided")
+	}
+
+	filter := bson.D{
+		primitive.E{Key: "slug_id", Value: *slugID},
+	}
+
+	if slugTitle != nil {
+		filter = append(filter, primitive.E{Key: "slug_title", Value: *slugTitle})
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, repo.cfg.RequestTimeout)
+	defer cancel()
+
+	res, err := repo.client.Database(repo.database).Collection(repo.collection).DeleteOne(ctx, filter)
 	if err != nil {
 		return err
 	}
@@ -126,16 +140,24 @@ func (repo *Repository) Delete(ctx context.Context, id *string) error {
 	return nil
 }
 
-func (repo *Repository) IncVote(ctx context.Context, id *string) error {
+func (repo *Repository) IncVote(ctx context.Context, slugID, slugTitle *string) error {
 
-	if id == nil {
-		return errors.New("no id provided")
+	if slugID == nil {
+		return errors.New("no slugID provided")
+	}
+
+	filter := bson.D{
+		primitive.E{Key: "slug_id", Value: *slugID},
+	}
+
+	if slugTitle != nil {
+		filter = append(filter, primitive.E{Key: "slug_title", Value: *slugTitle})
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, repo.cfg.RequestTimeout)
 	defer cancel()
 
-	res, err := repo.client.Database(repo.database).Collection(repo.collection).UpdateByID(ctx, *id, bson.D{
+	res, err := repo.client.Database(repo.database).Collection(repo.collection).UpdateOne(ctx, filter, bson.D{
 		primitive.E{
 			Key: "$inc",
 			Value: bson.D{
@@ -153,16 +175,24 @@ func (repo *Repository) IncVote(ctx context.Context, id *string) error {
 	return nil
 }
 
-func (repo *Repository) DecVote(ctx context.Context, id *string) error {
+func (repo *Repository) DecVote(ctx context.Context, slugID, slugTitle *string) error {
 
-	if id == nil {
-		return errors.New("no id provided")
+	if slugID == nil {
+		return errors.New("no slugID provided")
+	}
+
+	filter := bson.D{
+		primitive.E{Key: "slug_id", Value: *slugID},
+	}
+
+	if slugTitle != nil {
+		filter = append(filter, primitive.E{Key: "slug_title", Value: *slugTitle})
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, repo.cfg.RequestTimeout)
 	defer cancel()
 
-	res, err := repo.client.Database(repo.database).Collection(repo.collection).UpdateByID(ctx, *id, bson.D{
+	res, err := repo.client.Database(repo.database).Collection(repo.collection).UpdateOne(ctx, filter, bson.D{
 		primitive.E{
 			Key: "$dec",
 			Value: bson.D{
@@ -180,16 +210,24 @@ func (repo *Repository) DecVote(ctx context.Context, id *string) error {
 	return nil
 }
 
-func (repo *Repository) IncComments(ctx context.Context, id *string) error {
+func (repo *Repository) IncComments(ctx context.Context, slugID, slugTitle *string) error {
 
-	if id == nil {
-		return errors.New("no id provided")
+	if slugID == nil {
+		return errors.New("no slugID provided")
+	}
+
+	filter := bson.D{
+		primitive.E{Key: "slug_id", Value: *slugID},
+	}
+
+	if slugTitle != nil {
+		filter = append(filter, primitive.E{Key: "slug_title", Value: *slugTitle})
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, repo.cfg.RequestTimeout)
 	defer cancel()
 
-	res, err := repo.client.Database(repo.database).Collection(repo.collection).UpdateByID(ctx, *id, bson.D{
+	res, err := repo.client.Database(repo.database).Collection(repo.collection).UpdateOne(ctx, filter, bson.D{
 		primitive.E{
 			Key: "$inc",
 			Value: bson.D{
@@ -207,16 +245,24 @@ func (repo *Repository) IncComments(ctx context.Context, id *string) error {
 	return nil
 }
 
-func (repo *Repository) DecComments(ctx context.Context, id *string) error {
+func (repo *Repository) DecComments(ctx context.Context, slugID, slugTitle *string) error {
 
-	if id == nil {
-		return errors.New("no id provided")
+	if slugID == nil {
+		return errors.New("no slugID provided")
+	}
+
+	filter := bson.D{
+		primitive.E{Key: "slug_id", Value: *slugID},
+	}
+
+	if slugTitle != nil {
+		filter = append(filter, primitive.E{Key: "slug_title", Value: *slugTitle})
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, repo.cfg.RequestTimeout)
 	defer cancel()
 
-	res, err := repo.client.Database(repo.database).Collection(repo.collection).UpdateByID(ctx, *id, bson.D{
+	res, err := repo.client.Database(repo.database).Collection(repo.collection).UpdateOne(ctx, filter, bson.D{
 		primitive.E{
 			Key: "$dec",
 			Value: bson.D{

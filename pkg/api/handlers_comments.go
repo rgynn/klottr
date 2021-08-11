@@ -13,7 +13,8 @@ func (svc *Service) CreateCommentHandler(w http.ResponseWriter, r *http.Request)
 	m := new(comment.Model)
 	vars := mux.Vars(r)
 	category := vars["category"]
-	threadID := vars["thread_id"]
+	slugID := vars["slug_id"]
+	slugTitle := vars["slug_title"]
 	ctx := r.Context()
 
 	claims, err := ClaimsFromContext(ctx)
@@ -34,7 +35,7 @@ func (svc *Service) CreateCommentHandler(w http.ResponseWriter, r *http.Request)
 
 	switch category {
 	case "misc":
-		if _, err := svc.misc.Get(ctx, &threadID); err != nil {
+		if _, err = svc.misc.Get(ctx, &slugID, &slugTitle); err != nil {
 			NewErrorResponse(w, r, http.StatusInternalServerError, err)
 			return
 		}
@@ -50,7 +51,7 @@ func (svc *Service) CreateCommentHandler(w http.ResponseWriter, r *http.Request)
 
 	switch category {
 	case "misc":
-		if err := svc.misc.IncComments(ctx, &threadID); err != nil {
+		if err := svc.misc.IncComments(ctx, &slugID, &slugTitle); err != nil {
 			NewErrorResponse(w, r, http.StatusInternalServerError, err)
 			return
 		}
@@ -71,7 +72,8 @@ func (svc *Service) GetCommentHandler(w http.ResponseWriter, r *http.Request) {
 
 	vars := mux.Vars(r)
 	category := vars["category"]
-	threadID := vars["thread_id"]
+	slugID := vars["slug_id"]
+	slugTitle := vars["slug_title"]
 	commentID := vars["comment_id"]
 	ctx := r.Context()
 
@@ -83,7 +85,7 @@ func (svc *Service) GetCommentHandler(w http.ResponseWriter, r *http.Request) {
 
 	switch category {
 	case "misc":
-		if _, err := svc.misc.Get(ctx, &threadID); err != nil {
+		if _, err := svc.misc.Get(ctx, &slugID, &slugTitle); err != nil {
 			NewErrorResponse(w, r, http.StatusInternalServerError, err)
 			return
 		}
@@ -108,7 +110,8 @@ func (svc *Service) DeleteCommentHandler(w http.ResponseWriter, r *http.Request)
 
 	vars := mux.Vars(r)
 	category := vars["category"]
-	threadID := vars["thread_id"]
+	slugID := vars["slug_id"]
+	slugTitle := vars["slug_title"]
 	commentID := vars["comment_id"]
 	ctx := r.Context()
 
@@ -120,7 +123,7 @@ func (svc *Service) DeleteCommentHandler(w http.ResponseWriter, r *http.Request)
 
 	switch category {
 	case "misc":
-		if _, err := svc.misc.Get(ctx, &threadID); err != nil {
+		if _, err := svc.misc.Get(ctx, &slugID, &slugTitle); err != nil {
 			NewErrorResponse(w, r, http.StatusInternalServerError, err)
 			return
 		}
@@ -160,7 +163,8 @@ func (svc *Service) UpVoteCommentHandler(w http.ResponseWriter, r *http.Request)
 
 	vars := mux.Vars(r)
 	category := vars["category"]
-	threadID := vars["thread_id"]
+	slugID := vars["slug_id"]
+	slugTitle := vars["slug_title"]
 	commentID := vars["comment_id"]
 	ctx := r.Context()
 
@@ -172,7 +176,7 @@ func (svc *Service) UpVoteCommentHandler(w http.ResponseWriter, r *http.Request)
 
 	switch category {
 	case "misc":
-		if _, err := svc.misc.Get(ctx, &threadID); err != nil {
+		if _, err := svc.misc.Get(ctx, &slugID, &slugTitle); err != nil {
 			NewErrorResponse(w, r, http.StatusInternalServerError, err)
 			return
 		}
@@ -201,7 +205,8 @@ func (svc *Service) DownVoteCommentHandler(w http.ResponseWriter, r *http.Reques
 
 	vars := mux.Vars(r)
 	category := vars["category"]
-	threadID := vars["thread_id"]
+	slugID := vars["slug_id"]
+	slugTitle := vars["slug_title"]
 	commentID := vars["comment_id"]
 	ctx := r.Context()
 
@@ -213,7 +218,7 @@ func (svc *Service) DownVoteCommentHandler(w http.ResponseWriter, r *http.Reques
 
 	switch category {
 	case "misc":
-		if _, err := svc.misc.Get(ctx, &threadID); err != nil {
+		if _, err := svc.misc.Get(ctx, &slugID, &slugTitle); err != nil {
 			NewErrorResponse(w, r, http.StatusInternalServerError, err)
 			return
 		}

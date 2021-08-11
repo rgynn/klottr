@@ -6,6 +6,7 @@ import (
 
 	"github.com/rgynn/klottr/pkg/comment"
 	"github.com/rgynn/klottr/pkg/config"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -47,11 +48,11 @@ func (repo *Repository) Get(ctx context.Context, id *string) (*comment.Model, er
 	return nil, errors.New("not implemented yet")
 }
 
-func (repo *Repository) ListByThreadID(ctx context.Context, threadID *string, from, size int64) ([]*comment.Model, error) {
+func (repo *Repository) ListByThreadID(ctx context.Context, threadID *primitive.ObjectID, from, size int64) ([]*comment.Model, error) {
 	return nil, errors.New("not implemented yet")
 }
 
-func (repo *Repository) ListByUserID(ctx context.Context, userID *string, from, size int64) ([]*comment.Model, error) {
+func (repo *Repository) ListByUserID(ctx context.Context, userID *primitive.ObjectID, from, size int64) ([]*comment.Model, error) {
 	return nil, errors.New("not implemented yet")
 }
 

@@ -27,7 +27,15 @@ func main() {
 		logger.Fatal(err)
 	}
 
-	if err := createCappedCollections(cfg, client); err != nil {
+	if err := createCappedThreadsCollections(cfg, client); err != nil {
+		logger.Fatal(err)
+	}
+
+	if err := createCommentsCollection(cfg, client); err != nil {
+		logger.Fatal(err)
+	}
+
+	if err := createUsersCollection(cfg, client); err != nil {
 		logger.Fatal(err)
 	}
 
@@ -36,7 +44,7 @@ func main() {
 	}
 }
 
-func createCappedCollections(cfg *config.Config, client *mongo.Client) error {
+func createCappedThreadsCollections(cfg *config.Config, client *mongo.Client) error {
 
 	ctx, cancel := context.WithTimeout(context.Background(), cfg.RequestTimeout)
 	defer cancel()
@@ -69,6 +77,12 @@ func createCappedCollections(cfg *config.Config, client *mongo.Client) error {
 				},
 				{
 					Keys: bson.D{
+						primitive.E{Key: "slug_id", Value: 1},
+					},
+					Options: options.Index().SetUnique(true),
+				},
+				{
+					Keys: bson.D{
 						primitive.E{Key: "category", Value: 1},
 						primitive.E{Key: "slug_id", Value: 1},
 						primitive.E{Key: "slug_title", Value: 1},
@@ -94,6 +108,100 @@ func createCappedCollections(cfg *config.Config, client *mongo.Client) error {
 		for _, idx := range indexes {
 			logger.Infof("Created index: %s for collection: %s", idx, name)
 		}
+	}
+
+	return nil
+}
+
+func createCommentsCollection(cfg *config.Config, client *mongo.Client) error {
+
+	ctx, cancel := context.WithTimeout(context.Background(), cfg.RequestTimeout)
+	defer cancel()
+
+	name := "comments"
+
+	logger.Infof("Dropping collection: %s in database: %s", name, cfg.DatabaseName)
+	if err := client.Database(cfg.DatabaseName).Collection(name).Drop(ctx); err != nil {
+		logger.Warn(err)
+	}
+
+	logger.Infof("Creating collection: %s in database: %s", name, cfg.DatabaseName)
+	if err := client.Database(cfg.DatabaseName).CreateCollection(ctx, name); err != nil {
+		return err
+	}
+
+	logger.Infof("Creating indexes for collection: %s in database: %s", name, cfg.DatabaseName)
+	indexes, err := client.Database(cfg.DatabaseName).Collection(name).Indexes().CreateMany(ctx,
+		[]mongo.IndexModel{
+			{
+				Keys: bson.D{
+					primitive.E{Key: "_id", Value: 1},
+				},
+			},
+			{
+				Keys: bson.D{
+					primitive.E{Key: "thread_id", Value: 1},
+					primitive.E{Key: "user_id", Value: 1},
+				},
+			},
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	for _, idx := range indexes {
+		logger.Infof("Created index: %s for collection: %s", idx, name)
+	}
+
+	return nil
+}
+
+func createUsersCollection(cfg *config.Config, client *mongo.Client) error {
+
+	ctx, cancel := context.WithTimeout(context.Background(), cfg.RequestTimeout)
+	defer cancel()
+
+	name := "comments"
+
+	logger.Infof("Dropping collection: %s in database: %s", name, cfg.DatabaseName)
+	if err := client.Database(cfg.DatabaseName).Collection(name).Drop(ctx); err != nil {
+		logger.Warn(err)
+	}
+
+	logger.Infof("Creating collection: %s in database: %s", name, cfg.DatabaseName)
+	if err := client.Database(cfg.DatabaseName).CreateCollection(ctx, name); err != nil {
+		return err
+	}
+
+	logger.Infof("Creating indexes for collection: %s in database: %s", name, cfg.DatabaseName)
+	indexes, err := client.Database(cfg.DatabaseName).Collection(name).Indexes().CreateMany(ctx,
+		[]mongo.IndexModel{
+			{
+				Keys: bson.D{
+					primitive.E{Key: "_id", Value: 1},
+				},
+			},
+			{
+				Keys: bson.D{
+					primitive.E{Key: "username", Value: 1},
+				},
+				Options: options.Index().SetUnique(true),
+			},
+			{
+				Keys: bson.D{
+					primitive.E{Key: "username", Value: 1},
+					primitive.E{Key: "role", Value: 1},
+				},
+			},
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	for _, idx := range indexes {
+		logger.Infof("Created index: %s for collection: %s", idx, name)
 	}
 
 	return nil

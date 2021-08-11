@@ -42,16 +42,16 @@ func main() {
 	// Threads
 	v1.HandleFunc("/c/{category}", api.CreateCategoryThreadHandler).Methods(http.MethodPost)
 	v1.HandleFunc("/c/{category}", api.ListCategoryThreadsHandler).Methods(http.MethodGet)
-	v1.HandleFunc("/c/{category}/t/{thread_id}", api.GetCategoryThreadHandler).Methods(http.MethodGet)
-	v1.HandleFunc("/c/{category}/t/{thread_id}/upvote", api.UpVoteCategoryThreadHandler).Methods(http.MethodPost)
-	v1.HandleFunc("/c/{category}/t/{thread_id}/downvote", api.DownVoteCategoryThreadHandler).Methods(http.MethodPost)
+	v1.HandleFunc("/c/{category}/t/{slug_id}/{slug_title}", api.GetCategoryThreadHandler).Methods(http.MethodGet)
+	v1.HandleFunc("/c/{category}/t/{slug_id}/{slug_title}/upvote", api.UpVoteCategoryThreadHandler).Methods(http.MethodPost)
+	v1.HandleFunc("/c/{category}/t/{slug_id}/{slug_title}/downvote", api.DownVoteCategoryThreadHandler).Methods(http.MethodPost)
 
 	// Comments
-	v1.HandleFunc("/c/{category}/t/{thread_id}/com", api.CreateCommentHandler).Methods(http.MethodPost)
-	v1.HandleFunc("/c/{category}/t/{thread_id}/com/{comment_id}", api.GetCommentHandler).Methods(http.MethodGet)
-	v1.HandleFunc("/c/{category}/t/{thread_id}/com/{comment_id}", api.DeleteCommentHandler).Methods(http.MethodDelete)
-	v1.HandleFunc("/c/{category}/t/{thread_id}/com/{comment_id}/upvote", api.UpVoteCommentHandler).Methods(http.MethodPost)
-	v1.HandleFunc("/c/{category}/t/{thread_id}/com/{comment_id}/downvote", api.DownVoteCommentHandler).Methods(http.MethodPost)
+	v1.HandleFunc("/c/{category}/t/{slug_id}/{slug_title}/com", api.CreateCommentHandler).Methods(http.MethodPost)
+	v1.HandleFunc("/c/{category}/t/{slug_id}/{slug_title}/com/{comment_id}", api.GetCommentHandler).Methods(http.MethodGet)
+	v1.HandleFunc("/c/{category}/t/{slug_id}/{slug_title}/com/{comment_id}", api.DeleteCommentHandler).Methods(http.MethodDelete)
+	v1.HandleFunc("/c/{category}/t/{slug_id}/{slug_title}/com/{comment_id}/upvote", api.UpVoteCommentHandler).Methods(http.MethodPost)
+	v1.HandleFunc("/c/{category}/t/{slug_id}/{slug_title}/com/{comment_id}/downvote", api.DownVoteCommentHandler).Methods(http.MethodPost)
 
 	srv := &http.Server{
 		IdleTimeout:  cfg.IdleTimeout,

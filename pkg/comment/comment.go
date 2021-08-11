@@ -14,8 +14,8 @@ var ErrNotFound = errors.New("comment not found")
 type Repository interface {
 	Create(ctx context.Context, m *Model) error
 	Get(ctx context.Context, id *string) (*Model, error)
-	ListByThreadID(ctx context.Context, threadID *string, from, size int64) ([]*Model, error)
-	ListByUserID(ctx context.Context, userID *string, from, size int64) ([]*Model, error)
+	ListByThreadID(ctx context.Context, threadID *primitive.ObjectID, from, size int64) ([]*Model, error)
+	ListByUserID(ctx context.Context, userID *primitive.ObjectID, from, size int64) ([]*Model, error)
 	Delete(ctx context.Context, id *string) error
 
 	IncVotes(ctx context.Context, id *string) error

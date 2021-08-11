@@ -18,15 +18,16 @@ var ErrCategoryNotFound = errors.New("thread category not found")
 var ErrNotFound = errors.New("thread not found")
 
 type Repository interface {
-	Create(ctx context.Context, m *Model) error
-	Get(ctx context.Context, id *string) (*Model, error)
 	List(ctx context.Context, from, size int64) ([]*Model, error)
-	Delete(ctx context.Context, id *string) error
 
-	IncVote(ctx context.Context, id *string) error
-	DecVote(ctx context.Context, id *string) error
-	IncComments(ctx context.Context, id *string) error
-	DecComments(ctx context.Context, id *string) error
+	Create(ctx context.Context, m *Model) error
+	Get(ctx context.Context, slugID, slugTitle *string) (*Model, error)
+	Delete(ctx context.Context, slugID, slugTitle *string) error
+
+	IncVote(ctx context.Context, slugID, slugTitle *string) error
+	DecVote(ctx context.Context, slugID, slugTitle *string) error
+	IncComments(ctx context.Context, slugID, slugTitle *string) error
+	DecComments(ctx context.Context, slugID, slugTitle *string) error
 
 	Close() error
 }
