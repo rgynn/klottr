@@ -12,7 +12,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-var logger = logrus.New().WithFields(logrus.Fields{"app": "seed"})
+var logger = logrus.New()
 var threadCategories = []string{"misc"}
 
 func main() {
@@ -64,13 +64,19 @@ func createCappedCollections(cfg *config.Config, client *mongo.Client) error {
 			[]mongo.IndexModel{
 				{
 					Keys: bson.D{
-						primitive.E{Key: "category", Value: 1},
-						primitive.E{Key: "slug_id", Value: 1},
+						primitive.E{Key: "_id", Value: 1},
 					},
 				},
 				{
 					Keys: bson.D{
-						primitive.E{Key: "user_jd", Value: 1},
+						primitive.E{Key: "category", Value: 1},
+						primitive.E{Key: "slug_id", Value: 1},
+						primitive.E{Key: "slug_title", Value: 1},
+					},
+				},
+				{
+					Keys: bson.D{
+						primitive.E{Key: "user_id", Value: 1},
 					},
 				},
 				{
@@ -79,7 +85,8 @@ func createCappedCollections(cfg *config.Config, client *mongo.Client) error {
 					},
 					Options: options.Index().SetExpireAfterSeconds(cfg.PostTTLSeconds),
 				},
-			})
+			},
+		)
 		if err != nil {
 			return err
 		}
