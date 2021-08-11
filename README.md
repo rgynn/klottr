@@ -8,7 +8,7 @@ Service in the same vein as hackernews or reddit. Threads, comments, users, upvo
 DEBUG=true
 HOST=0.0.0.0
 PORT=3000
-REQBODYLIMIT=100K
+REQBODYLIMIT_BYTES=100K
 TIMEOUT_REQ=6s
 TIMEOUT_IDLE=3s
 TIMEOUT_READ=3s
