@@ -14,7 +14,7 @@ TIMEOUT_IDLE=3s
 TIMEOUT_READ=3s
 TIMEOUT_WRITE=3s
 CORS_ALLOW_ORIGINS=localhost
-POST_TTL=24h
+POST_TTL_SECONDS=86400
 DATABASE_URL=mongodb+srv://<username>:<password>@<hostname>/<defaultdb>?authSource=admin&replicaSet=<replicasetname>&tls=true&tlsCAFile=<filepath>
 DATABASE_NAME=***
 JWT_SECRET=***

@@ -2,31 +2,94 @@ package main
 
 import (
 	"context"
-	"log"
+	"fmt"
 
 	"github.com/rgynn/klottr/pkg/config"
+	"github.com/sirupsen/logrus"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
+
+var logger = logrus.New().WithFields(logrus.Fields{"app": "seed"})
+var threadCategories = []string{"misc"}
 
 func main() {
 
 	cfg, err := config.NewFromEnv()
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 
 	client, err := openDB(cfg)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 
-	// todo: make sure thread collections are capped with expiration on documents
-	// todo: make sure indexes are present on collections
+	if err := createCappedCollections(cfg, client); err != nil {
+		logger.Fatal(err)
+	}
 
 	if err := closeDB(cfg, client); err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
+}
+
+func createCappedCollections(cfg *config.Config, client *mongo.Client) error {
+
+	ctx, cancel := context.WithTimeout(context.Background(), cfg.RequestTimeout)
+	defer cancel()
+
+	for _, category := range threadCategories {
+
+		name := fmt.Sprintf("threads_%s", category)
+
+		logger.Infof("Dropping collection: %s in database: %s", name, cfg.DatabaseName)
+		if err := client.Database(cfg.DatabaseName).Collection(name).Drop(ctx); err != nil {
+			logger.Warn(err)
+		}
+
+		logger.Infof("Creating collection: %s in database: %s", name, cfg.DatabaseName)
+		if err := client.Database(cfg.DatabaseName).CreateCollection(ctx, name,
+			options.CreateCollection().
+				SetCapped(true).
+				SetSizeInBytes(1000000000),
+		); err != nil {
+			return err
+		}
+
+		logger.Infof("Creating indexes for collection: %s in database: %s", name, cfg.DatabaseName)
+		indexes, err := client.Database(cfg.DatabaseName).Collection(name).Indexes().CreateMany(ctx,
+			[]mongo.IndexModel{
+				{
+					Keys: bson.D{
+						primitive.E{Key: "category", Value: 1},
+						primitive.E{Key: "slug_id", Value: 1},
+					},
+				},
+				{
+					Keys: bson.D{
+						primitive.E{Key: "user_jd", Value: 1},
+					},
+				},
+				{
+					Keys: bson.D{
+						primitive.E{Key: "created", Value: 1},
+					},
+					Options: options.Index().SetExpireAfterSeconds(cfg.PostTTLSeconds),
+				},
+			})
+		if err != nil {
+			return err
+		}
+
+		for _, idx := range indexes {
+			logger.Infof("Created index: %s for collection: %s", idx, name)
+		}
+	}
+
+	return nil
 }
 
 func openDB(cfg *config.Config) (*mongo.Client, error) {
@@ -36,14 +99,14 @@ func openDB(cfg *config.Config) (*mongo.Client, error) {
 
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI(cfg.DatabaseURL))
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
 	if err := client.Ping(ctx, nil); err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
-	log.Printf("INFO: Connected to database with uri: %s\n", cfg.DatabaseURL)
+	logger.Infof("INFO: Connected to database with uri: %s\n", cfg.DatabaseURL)
 
 	return client, nil
 }
@@ -57,7 +120,7 @@ func closeDB(cfg *config.Config, client *mongo.Client) error {
 		return err
 	}
 
-	log.Printf("INFO: Disconnected from database\n")
+	logger.Infof("INFO: Disconnected from database\n")
 
 	return nil
 }

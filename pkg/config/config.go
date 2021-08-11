@@ -19,7 +19,7 @@ type Config struct {
 	IdleTimeout           time.Duration
 	ReadTimeout           time.Duration
 	WriteTimeout          time.Duration
-	PostTTL               time.Duration
+	PostTTLSeconds        int32
 	CORSAllowOrigins      []string
 	DatabaseName          string
 	DatabaseURL           string
@@ -72,9 +72,9 @@ func NewFromEnv(filenames ...string) (*Config, error) {
 		return nil, fmt.Errorf("failed to parse TIMEOUT_WRITE env variable to time.Duration: %w", err)
 	}
 
-	postTTL, err := time.ParseDuration(os.Getenv("POST_TTL"))
+	postTTLSeconds, err := strconv.ParseInt(os.Getenv("POST_TTL_SECONDS"), 10, 32)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse POST_TTL env variable to time.Duration: %w", err)
+		return nil, fmt.Errorf("failed to parse POST_TTL_SECONDS env variable to int32: %w", err)
 	}
 
 	corsAllowOrigins := strings.Split(os.Getenv("CORS_ALLOW_ORIGINS"), ",")
@@ -103,7 +103,7 @@ func NewFromEnv(filenames ...string) (*Config, error) {
 		ReadTimeout:           readTimeout,
 		WriteTimeout:          writeTimeout,
 		CORSAllowOrigins:      corsAllowOrigins,
-		PostTTL:               postTTL,
+		PostTTLSeconds:        int32(postTTLSeconds),
 		DatabaseName:          dbName,
 		DatabaseURL:           dbURL,
 		JWTSecret:             jwtSecret,
