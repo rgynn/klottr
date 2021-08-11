@@ -26,12 +26,17 @@ func (svc *Service) CreateCategoryThreadHandler(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	if err := m.ValidForSave(); err != nil {
+	if err := m.GenerateSlugs(); err != nil {
 		NewErrorResponse(w, r, http.StatusBadRequest, err)
 		return
 	}
 
 	m.Created = ptrconv.TimePtr(time.Now().UTC())
+
+	if err := m.ValidForSave(); err != nil {
+		NewErrorResponse(w, r, http.StatusBadRequest, err)
+		return
+	}
 
 	switch *m.Category {
 	case "misc":

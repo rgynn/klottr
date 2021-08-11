@@ -3,12 +3,12 @@ package api
 import (
 	"context"
 	"errors"
-	"math/rand"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt"
+	"github.com/rgynn/klottr/pkg/helper"
 	"github.com/rgynn/klottr/pkg/user"
 	"github.com/rgynn/ptrconv"
 	"github.com/sirupsen/logrus"
@@ -30,20 +30,11 @@ func RequestIDFromContext(ctx context.Context) (*string, error) {
 	return &rid, nil
 }
 
-func randomString(n int) string {
-	var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
-	s := make([]rune, n)
-	for i := range s {
-		s[i] = letters[rand.Intn(len(letters))]
-	}
-	return string(s)
-}
-
 func (svc *Service) RequestIDMiddleware(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		reqid := r.Header.Get("X-Request-ID")
 		if reqid == "" {
-			reqid = randomString(20)
+			reqid = helper.RandomString(20)
 		}
 		h.ServeHTTP(w, r.WithContext(RequestIDContext(r.Context(), reqid)))
 	})
