@@ -2,6 +2,8 @@ PACKAGE=klottr
 .PHONY: test run build build_docker clean
 test:
 	go test ./...
+test_int:
+	go run cmd/intg_test/main.go
 run:
 	go run main.go
 build:

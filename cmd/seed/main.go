@@ -90,7 +90,7 @@ func createCappedThreadsCollections(cfg *config.Config, client *mongo.Client) er
 				},
 				{
 					Keys: bson.D{
-						primitive.E{Key: "user_id", Value: 1},
+						primitive.E{Key: "username", Value: 1},
 					},
 				},
 				{
@@ -162,7 +162,7 @@ func createUsersCollection(cfg *config.Config, client *mongo.Client) error {
 	ctx, cancel := context.WithTimeout(context.Background(), cfg.RequestTimeout)
 	defer cancel()
 
-	name := "comments"
+	name := "users"
 
 	logger.Infof("Dropping collection: %s in database: %s", name, cfg.DatabaseName)
 	if err := client.Database(cfg.DatabaseName).Collection(name).Drop(ctx); err != nil {

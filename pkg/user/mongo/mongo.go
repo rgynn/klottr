@@ -3,6 +3,7 @@ package mongo
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/rgynn/klottr/pkg/config"
 	"github.com/rgynn/klottr/pkg/user"
@@ -53,6 +54,9 @@ func (repo *Repository) Create(ctx context.Context, m *user.Model) error {
 
 	_, err := repo.client.Database(repo.database).Collection(repo.collection).InsertOne(ctx, m)
 	if err != nil {
+		if mongo.IsDuplicateKeyError(err) {
+			return user.ErrAlreadyExists
+		}
 		return err
 	}
 
@@ -89,7 +93,29 @@ func (repo *Repository) Search(ctx context.Context, username, role *string, from
 	return result, nil
 }
 
-func (repo *Repository) Get(ctx context.Context, username *string) (*user.Model, error) {
+func (repo *Repository) GetByID(ctx context.Context, id *string) (*user.Model, error) {
+
+	if id == nil {
+		return nil, errors.New("no id provided")
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, repo.cfg.RequestTimeout)
+	defer cancel()
+
+	var result *user.Model
+	if err := repo.client.Database(repo.database).Collection(repo.collection).FindOne(ctx, bson.D{primitive.E{Key: "_id", Value: *id}}).Decode(&result); err != nil {
+		switch err {
+		case mongo.ErrNoDocuments:
+			return nil, user.ErrNotFound
+		default:
+			return nil, err
+		}
+	}
+
+	return result, nil
+}
+
+func (repo *Repository) GetByUsername(ctx context.Context, username *string) (*user.Model, error) {
 
 	if username == nil {
 		return nil, errors.New("no username provided")
@@ -104,6 +130,45 @@ func (repo *Repository) Get(ctx context.Context, username *string) (*user.Model,
 	}
 
 	return result, nil
+}
+
+func (repo *Repository) Deactivate(ctx context.Context, username, role *string) error {
+
+	if username == nil {
+		return errors.New("no username provided")
+	}
+
+	if role == nil {
+		return errors.New("no role provided")
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, repo.cfg.RequestTimeout)
+	defer cancel()
+
+	res, err := repo.client.Database(repo.database).Collection(repo.collection).UpdateOne(ctx,
+		bson.D{
+			primitive.E{Key: "role", Value: *role},
+			primitive.E{Key: "username", Value: *username},
+		},
+		bson.D{
+			primitive.E{
+				Key: "$set",
+				Value: bson.D{primitive.E{
+					Key:   "deactivated",
+					Value: time.Now().UTC()},
+				},
+			},
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	if res.ModifiedCount != 1 {
+		return user.ErrNotFound
+	}
+
+	return nil
 }
 
 func (repo *Repository) Delete(ctx context.Context, username, role *string) error {

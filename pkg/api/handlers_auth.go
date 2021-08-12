@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt"
-	"github.com/gorilla/mux"
 	"github.com/rgynn/klottr/pkg/user"
 	"github.com/rgynn/ptrconv"
 )
@@ -48,9 +47,14 @@ func (svc *Service) SignInHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	u, err := svc.users.Get(ctx, m.Username)
+	u, err := svc.users.GetByUsername(ctx, m.Username)
 	if err != nil {
 		NewErrorResponse(w, r, http.StatusInternalServerError, err)
+		return
+	}
+
+	if u.IsDeactivated() {
+		NewErrorResponse(w, r, http.StatusUnauthorized, user.ErrDeactivated)
 		return
 	}
 
@@ -93,6 +97,7 @@ func (svc *Service) SignUpHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	m.Role = ptrconv.StringPtr("user")
+	m.Created = ptrconv.TimePtr(time.Now().UTC())
 
 	if err := m.HashPassword(); err != nil {
 		NewErrorResponse(w, r, http.StatusBadRequest, err)
@@ -110,38 +115,16 @@ func (svc *Service) SignUpHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := svc.users.Create(ctx, m); err != nil {
-		NewErrorResponse(w, r, http.StatusInternalServerError, err)
+		switch err {
+		case user.ErrAlreadyExists:
+			NewErrorResponse(w, r, http.StatusConflict, err)
+		default:
+			NewErrorResponse(w, r, http.StatusInternalServerError, err)
+		}
 		return
 	}
 
-	if err := svc.NoContentResponse(w, http.StatusAccepted); err != nil {
-		NewErrorResponse(w, r, http.StatusInternalServerError, err)
-		return
-	}
-}
-
-func (svc *Service) DeactivateHandler(w http.ResponseWriter, r *http.Request) {
-
-	username := mux.Vars(r)["username"]
-	ctx := r.Context()
-
-	claims, err := ClaimsFromContext(ctx)
-	if err != nil {
-		NewErrorResponse(w, r, http.StatusUnauthorized, err)
-		return
-	}
-
-	if claims.Username == nil || *claims.Username != username {
-		NewErrorResponse(w, r, http.StatusUnauthorized, err)
-		return
-	}
-
-	if err := svc.users.Delete(ctx, claims.Username, claims.Role); err != nil {
-		NewErrorResponse(w, r, http.StatusInternalServerError, err)
-		return
-	}
-
-	if err := svc.NoContentResponse(w, http.StatusAccepted); err != nil {
+	if err := svc.NoContentResponse(w, http.StatusCreated); err != nil {
 		NewErrorResponse(w, r, http.StatusInternalServerError, err)
 		return
 	}

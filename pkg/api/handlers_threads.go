@@ -12,6 +12,7 @@ import (
 
 func (svc *Service) CreateCategoryThreadHandler(w http.ResponseWriter, r *http.Request) {
 
+	category := mux.Vars(r)["category"]
 	m := new(thread.Model)
 	ctx := r.Context()
 
@@ -31,6 +32,7 @@ func (svc *Service) CreateCategoryThreadHandler(w http.ResponseWriter, r *http.R
 		return
 	}
 
+	m.Category = &category
 	m.Created = ptrconv.TimePtr(time.Now().UTC())
 
 	if err := m.ValidForSave(); err != nil {
@@ -38,10 +40,17 @@ func (svc *Service) CreateCategoryThreadHandler(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	switch *m.Category {
+	var result *thread.Model
+
+	switch category {
 	case "misc":
 		if err := svc.misc.Create(ctx, m); err != nil {
 			logger.Errorf("Failed to create misc thread: %s", err.Error())
+			NewErrorResponse(w, r, http.StatusInternalServerError, err)
+			return
+		}
+		if result, err = svc.misc.Get(ctx, m.SlugID, m.SlugTitle); err != nil {
+			logger.Errorf("Failed to get misc thread: %s", err.Error())
 			NewErrorResponse(w, r, http.StatusInternalServerError, err)
 			return
 		}
@@ -50,7 +59,7 @@ func (svc *Service) CreateCategoryThreadHandler(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	if err := svc.NoContentResponse(w, http.StatusCreated); err != nil {
+	if err := svc.MarshalJSONResponse(w, http.StatusCreated, result); err != nil {
 		NewErrorResponse(w, r, http.StatusInternalServerError, err)
 		return
 	}

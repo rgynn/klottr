@@ -31,13 +31,15 @@ func main() {
 
 	r.HandleFunc("/auth/signin", api.SignInHandler).Methods(http.MethodPost)
 	r.HandleFunc("/auth/signup", api.SignUpHandler).Methods(http.MethodPost)
-	r.HandleFunc("/auth/deactivate", api.DeactivateHandler).Methods(http.MethodDelete)
 
 	v1 := r.PathPrefix("/api/1.0").Subrouter()
 
 	v1.Use(
 		api.JWTMiddleware,
 	)
+
+	// Users
+	v1.HandleFunc("/users/{username}/deactivate", api.DeactivateUserHandler).Methods(http.MethodPost)
 
 	// Threads
 	v1.HandleFunc("/c/{category}", api.CreateCategoryThreadHandler).Methods(http.MethodPost)

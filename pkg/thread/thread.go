@@ -38,8 +38,8 @@ type Counters struct {
 }
 
 type Model struct {
-	ID        *primitive.ObjectID `json:"id" bson:"_id"`
-	UserID    *primitive.ObjectID `json:"user_id"  bson:"user_id,omitempty"`
+	ID        *primitive.ObjectID `json:"id,omitempty" bson:"_id,omitempty"`
+	Username  *string             `json:"username"  bson:"username"`
 	SlugID    *string             `json:"slug_id"  bson:"slug_id"`
 	SlugTitle *string             `json:"slug_title"  bson:"slug_title"`
 	Category  *string             `json:"category"  bson:"category"`
@@ -61,8 +61,8 @@ func (m *Model) ValidForSave() error {
 		return errors.New("cannot provide new object id for thread")
 	}
 
-	if m.UserID == nil {
-		return errors.New("no m.UserID provided for new thread")
+	if m.Username == nil {
+		return errors.New("no m.Username provided for new thread")
 	}
 
 	if m.Category == nil {

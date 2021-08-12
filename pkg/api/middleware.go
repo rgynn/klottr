@@ -67,6 +67,9 @@ func (svc *Service) ContextLoggerMiddleware(h http.Handler) http.Handler {
 		if rid, err := RequestIDFromContext(r.Context()); err == nil {
 			contextlogger = contextlogger.WithField("rid", *rid)
 		}
+		if svc.cfg.Debug {
+			contextlogger.Level = logrus.DebugLevel
+		}
 		h.ServeHTTP(w, r.WithContext(LoggerContext(r.Context(), contextlogger)))
 	})
 }

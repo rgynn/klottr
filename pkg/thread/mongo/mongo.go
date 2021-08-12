@@ -168,7 +168,7 @@ func (repo *Repository) IncVote(ctx context.Context, slugID, slugTitle *string) 
 		return err
 	}
 
-	if res.MatchedCount != 1 {
+	if res.ModifiedCount != 1 {
 		return thread.ErrNotFound
 	}
 
@@ -203,7 +203,7 @@ func (repo *Repository) DecVote(ctx context.Context, slugID, slugTitle *string) 
 		return err
 	}
 
-	if res.MatchedCount != 1 {
+	if res.ModifiedCount != 1 {
 		return thread.ErrNotFound
 	}
 
@@ -238,7 +238,7 @@ func (repo *Repository) IncComments(ctx context.Context, slugID, slugTitle *stri
 		return err
 	}
 
-	if res.MatchedCount != 1 {
+	if res.ModifiedCount != 1 {
 		return thread.ErrNotFound
 	}
 
@@ -273,7 +273,7 @@ func (repo *Repository) DecComments(ctx context.Context, slugID, slugTitle *stri
 		return err
 	}
 
-	if res.MatchedCount != 1 {
+	if res.ModifiedCount != 1 {
 		return thread.ErrNotFound
 	}
 

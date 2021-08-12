@@ -122,7 +122,7 @@ func (svc *Service) GetAdminUserHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	result, err := svc.users.Get(ctx, &username)
+	result, err := svc.users.GetByUsername(ctx, &username)
 	if err != nil {
 		NewErrorResponse(w, r, http.StatusInternalServerError, err)
 		return
