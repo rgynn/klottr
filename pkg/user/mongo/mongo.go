@@ -21,18 +21,14 @@ type Repository struct {
 	client     *mongo.Client
 }
 
-func NewRepository(cfg *config.Config) (user.Repository, error) {
+func NewRepository(cfg *config.Config, client *mongo.Client) (user.Repository, error) {
 
-	ctx, cancel := context.WithTimeout(context.Background(), cfg.RequestTimeout)
-	defer cancel()
-
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(cfg.DatabaseURL))
-	if err != nil {
-		return nil, err
+	if cfg == nil {
+		return nil, errors.New("no cfg *config.Config provided")
 	}
 
-	if err := client.Ping(ctx, nil); err != nil {
-		return nil, err
+	if client == nil {
+		return nil, errors.New("no client *mongo.Client provided")
 	}
 
 	return &Repository{
@@ -150,15 +146,13 @@ func (repo *Repository) Deactivate(ctx context.Context, username, role *string) 
 			primitive.E{Key: "role", Value: *role},
 			primitive.E{Key: "username", Value: *username},
 		},
-		bson.D{
-			primitive.E{
-				Key: "$set",
-				Value: bson.D{primitive.E{
-					Key:   "deactivated",
-					Value: time.Now().UTC()},
-				},
-			},
-		},
+		bson.D{primitive.E{
+			Key: "$set",
+			Value: bson.D{primitive.E{
+				Key:   "deactivated",
+				Value: time.Now().UTC(),
+			}},
+		}},
 	)
 	if err != nil {
 		return err
@@ -445,10 +439,4 @@ func (repo *Repository) DecCommentsVotes(ctx context.Context, username *string) 
 	}
 
 	return nil
-}
-
-func (repo *Repository) Close() error {
-	ctx, cancel := context.WithTimeout(context.Background(), repo.cfg.RequestTimeout)
-	defer cancel()
-	return repo.client.Disconnect(ctx)
 }

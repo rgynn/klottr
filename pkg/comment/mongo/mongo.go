@@ -19,18 +19,14 @@ type Repository struct {
 	client     *mongo.Client
 }
 
-func NewRepository(cfg *config.Config) (comment.Repository, error) {
+func NewRepository(cfg *config.Config, client *mongo.Client) (comment.Repository, error) {
 
-	ctx, cancel := context.WithTimeout(context.Background(), cfg.RequestTimeout)
-	defer cancel()
-
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(cfg.DatabaseURL))
-	if err != nil {
-		return nil, err
+	if cfg == nil {
+		return nil, errors.New("no cfg *config.Config provided")
 	}
 
-	if err := client.Ping(ctx, nil); err != nil {
-		return nil, err
+	if client == nil {
+		return nil, errors.New("no client *mongo.Client provided")
 	}
 
 	return &Repository{
@@ -58,10 +54,10 @@ func (repo *Repository) Create(ctx context.Context, m *comment.Model) error {
 	return nil
 }
 
-func (repo *Repository) Get(ctx context.Context, id *string) (*comment.Model, error) {
+func (repo *Repository) Get(ctx context.Context, slugID *string) (*comment.Model, error) {
 
-	if id == nil {
-		return nil, errors.New("no id provided")
+	if slugID == nil {
+		return nil, errors.New("no slugID provided")
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, repo.cfg.RequestTimeout)
@@ -69,7 +65,7 @@ func (repo *Repository) Get(ctx context.Context, id *string) (*comment.Model, er
 
 	var result *comment.Model
 	if err := repo.client.Database(repo.database).Collection(repo.collection).FindOne(ctx, bson.D{
-		primitive.E{Key: "_id", Value: *id},
+		primitive.E{Key: "slug_id", Value: *slugID},
 	}).Decode(&result); err != nil {
 		return nil, err
 	}
@@ -101,17 +97,17 @@ func (repo *Repository) ListByThreadID(ctx context.Context, threadID *primitive.
 	return result, nil
 }
 
-func (repo *Repository) ListByUserID(ctx context.Context, userID *primitive.ObjectID, from, size int64) ([]*comment.Model, error) {
+func (repo *Repository) ListByUsername(ctx context.Context, username *string, from, size int64) ([]*comment.Model, error) {
 
-	if userID == nil {
-		return nil, errors.New("no userID provided")
+	if username == nil {
+		return nil, errors.New("no username provided")
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, repo.cfg.RequestTimeout)
 	defer cancel()
 
 	cursor, err := repo.client.Database(repo.database).Collection(repo.collection).Find(ctx, bson.D{
-		primitive.E{Key: "user_id", Value: *userID},
+		primitive.E{Key: "username", Value: *username},
 	}, options.Find().SetSkip(from).SetLimit(size))
 	if err != nil {
 		return nil, err
@@ -125,17 +121,17 @@ func (repo *Repository) ListByUserID(ctx context.Context, userID *primitive.Obje
 	return result, nil
 }
 
-func (repo *Repository) Delete(ctx context.Context, id *string) error {
+func (repo *Repository) Delete(ctx context.Context, slugID *string) error {
 
-	if id == nil {
-		return errors.New("no id provided")
+	if slugID == nil {
+		return errors.New("no slugID provided")
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, repo.cfg.RequestTimeout)
 	defer cancel()
 
 	res, err := repo.client.Database(repo.database).Collection(repo.collection).DeleteOne(ctx, bson.D{
-		primitive.E{Key: "_id", Value: *id},
+		primitive.E{Key: "slug_id", Value: *slugID},
 	})
 	if err != nil {
 		return err
@@ -148,17 +144,17 @@ func (repo *Repository) Delete(ctx context.Context, id *string) error {
 	return nil
 }
 
-func (repo *Repository) IncVotes(ctx context.Context, id *string) error {
+func (repo *Repository) IncVotes(ctx context.Context, slugID *string) error {
 
-	if id == nil {
-		return errors.New("no id provided")
+	if slugID == nil {
+		return errors.New("no slugID provided")
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, repo.cfg.RequestTimeout)
 	defer cancel()
 
 	res, err := repo.client.Database(repo.database).Collection(repo.collection).UpdateOne(ctx, bson.D{
-		primitive.E{Key: "_id", Value: *id},
+		primitive.E{Key: "slug_id", Value: *slugID},
 	}, bson.D{
 		primitive.E{
 			Key: "$inc",
@@ -177,17 +173,17 @@ func (repo *Repository) IncVotes(ctx context.Context, id *string) error {
 	return nil
 }
 
-func (repo *Repository) DecVotes(ctx context.Context, id *string) error {
+func (repo *Repository) DecVotes(ctx context.Context, slugID *string) error {
 
-	if id == nil {
-		return errors.New("no id provided")
+	if slugID == nil {
+		return errors.New("no slugID provided")
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, repo.cfg.RequestTimeout)
 	defer cancel()
 
 	res, err := repo.client.Database(repo.database).Collection(repo.collection).UpdateOne(ctx, bson.D{
-		primitive.E{Key: "_id", Value: *id},
+		primitive.E{Key: "slug_id", Value: *slugID},
 	}, bson.D{
 		primitive.E{
 			Key: "$inc",
@@ -204,10 +200,4 @@ func (repo *Repository) DecVotes(ctx context.Context, id *string) error {
 	}
 
 	return nil
-}
-
-func (repo *Repository) Close() error {
-	ctx, cancel := context.WithTimeout(context.Background(), repo.cfg.RequestTimeout)
-	defer cancel()
-	return repo.client.Disconnect(ctx)
 }

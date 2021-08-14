@@ -27,7 +27,7 @@ func main() {
 		logger.Fatal(err)
 	}
 
-	if err := createCappedThreadsCollections(cfg, client); err != nil {
+	if err := createThreadsCollections(cfg, client); err != nil {
 		logger.Fatal(err)
 	}
 
@@ -44,7 +44,7 @@ func main() {
 	}
 }
 
-func createCappedThreadsCollections(cfg *config.Config, client *mongo.Client) error {
+func createThreadsCollections(cfg *config.Config, client *mongo.Client) error {
 
 	ctx, cancel := context.WithTimeout(context.Background(), cfg.RequestTimeout)
 	defer cancel()
@@ -59,11 +59,7 @@ func createCappedThreadsCollections(cfg *config.Config, client *mongo.Client) er
 		}
 
 		logger.Infof("Creating collection: %s in database: %s", name, cfg.DatabaseName)
-		if err := client.Database(cfg.DatabaseName).CreateCollection(ctx, name,
-			options.CreateCollection().
-				SetCapped(true).
-				SetSizeInBytes(1000000000),
-		); err != nil {
+		if err := client.Database(cfg.DatabaseName).CreateCollection(ctx, name); err != nil {
 			return err
 		}
 
@@ -140,9 +136,21 @@ func createCommentsCollection(cfg *config.Config, client *mongo.Client) error {
 			},
 			{
 				Keys: bson.D{
-					primitive.E{Key: "thread_id", Value: 1},
-					primitive.E{Key: "user_id", Value: 1},
+					primitive.E{Key: "slug_id", Value: 1},
 				},
+				Options: options.Index().SetUnique(true),
+			},
+			{
+				Keys: bson.D{
+					primitive.E{Key: "thread_id", Value: 1},
+					primitive.E{Key: "username", Value: 1},
+				},
+			},
+			{
+				Keys: bson.D{
+					primitive.E{Key: "created", Value: 1},
+				},
+				Options: options.Index().SetExpireAfterSeconds(cfg.PostTTLSeconds),
 			},
 		},
 	)

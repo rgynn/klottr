@@ -16,6 +16,12 @@ func (svc *Service) CreateCategoryThreadHandler(w http.ResponseWriter, r *http.R
 	m := new(thread.Model)
 	ctx := r.Context()
 
+	claims, err := ClaimsFromContext(ctx)
+	if err != nil {
+		NewErrorResponse(w, r, http.StatusUnauthorized, err)
+		return
+	}
+
 	logger, err := LoggerFromContext(ctx)
 	if err != nil {
 		NewErrorResponse(w, r, http.StatusInternalServerError, err)
@@ -56,6 +62,11 @@ func (svc *Service) CreateCategoryThreadHandler(w http.ResponseWriter, r *http.R
 		}
 	default:
 		NewErrorResponse(w, r, http.StatusNotFound, thread.ErrCategoryNotFound)
+		return
+	}
+
+	if err := svc.users.IncThreadsCounter(ctx, claims.Username); err != nil {
+		NewErrorResponse(w, r, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -130,7 +141,6 @@ func (svc *Service) GetCategoryThreadHandler(w http.ResponseWriter, r *http.Requ
 		NewErrorResponse(w, r, http.StatusNotFound, thread.ErrCategoryNotFound)
 		return
 	}
-
 	if err != nil {
 		logger.Errorf("Failed to get misc thread: %s", err.Error())
 		NewErrorResponse(w, r, http.StatusInternalServerError, err)
@@ -151,19 +161,40 @@ func (svc *Service) UpVoteCategoryThreadHandler(w http.ResponseWriter, r *http.R
 	slugTitle := vars["slug_title"]
 	ctx := r.Context()
 
+	_, err := ClaimsFromContext(ctx)
+	if err != nil {
+		NewErrorResponse(w, r, http.StatusUnauthorized, err)
+		return
+	}
+
 	logger, err := LoggerFromContext(ctx)
 	if err != nil {
 		NewErrorResponse(w, r, http.StatusInternalServerError, err)
 		return
 	}
 
+	var thrd *thread.Model
+
 	switch category {
 	case "misc":
+		thrd, err = svc.misc.Get(ctx, &slugID, &slugTitle)
+		if err != nil {
+			NewErrorResponse(w, r, http.StatusNotFound, thread.ErrNotFound)
+			return
+		}
 		if err := svc.misc.IncVote(ctx, &slugID, &slugTitle); err != nil {
 			logger.Errorf("Failed to upvote misc thread: %s", err.Error())
 			NewErrorResponse(w, r, http.StatusInternalServerError, err)
 			return
 		}
+	default:
+		NewErrorResponse(w, r, http.StatusNotFound, thread.ErrCategoryNotFound)
+		return
+	}
+
+	if err := svc.users.IncThreadsVotes(ctx, thrd.Username); err != nil {
+		NewErrorResponse(w, r, http.StatusInternalServerError, err)
+		return
 	}
 
 	if err := svc.NoContentResponse(w, http.StatusAccepted); err != nil {
@@ -180,14 +211,27 @@ func (svc *Service) DownVoteCategoryThreadHandler(w http.ResponseWriter, r *http
 	slugTitle := vars["slug_title"]
 	ctx := r.Context()
 
+	_, err := ClaimsFromContext(ctx)
+	if err != nil {
+		NewErrorResponse(w, r, http.StatusUnauthorized, err)
+		return
+	}
+
 	logger, err := LoggerFromContext(ctx)
 	if err != nil {
 		NewErrorResponse(w, r, http.StatusInternalServerError, err)
 		return
 	}
 
+	var thrd *thread.Model
+
 	switch category {
 	case "misc":
+		thrd, err = svc.misc.Get(ctx, &slugID, &slugTitle)
+		if err != nil {
+			NewErrorResponse(w, r, http.StatusNotFound, thread.ErrNotFound)
+			return
+		}
 		if err := svc.misc.DecVote(ctx, &slugID, &slugTitle); err != nil {
 			logger.Errorf("Failed to upvote misc thread: %s", err.Error())
 			NewErrorResponse(w, r, http.StatusInternalServerError, err)
@@ -195,6 +239,11 @@ func (svc *Service) DownVoteCategoryThreadHandler(w http.ResponseWriter, r *http
 		}
 	default:
 		NewErrorResponse(w, r, http.StatusNotFound, thread.ErrCategoryNotFound)
+		return
+	}
+
+	if err := svc.users.DecThreadsVotes(ctx, thrd.Username); err != nil {
+		NewErrorResponse(w, r, http.StatusInternalServerError, err)
 		return
 	}
 

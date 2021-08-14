@@ -129,3 +129,24 @@ func (svc *Service) SignUpHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 }
+
+func (svc *Service) DeactivateHandler(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	claims, err := ClaimsFromContext(ctx)
+	if err != nil {
+		NewErrorResponse(w, r, http.StatusUnauthorized, err)
+		return
+	}
+
+	if err := svc.users.Deactivate(ctx, claims.Username, claims.Role); err != nil {
+		NewErrorResponse(w, r, http.StatusInternalServerError, err)
+		return
+	}
+
+	if err := svc.NoContentResponse(w, http.StatusAccepted); err != nil {
+		NewErrorResponse(w, r, http.StatusInternalServerError, err)
+		return
+	}
+}

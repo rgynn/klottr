@@ -34,8 +34,6 @@ type Repository interface {
 	DecThreadsVotes(ctx context.Context, username *string) error
 	IncCommentsVotes(ctx context.Context, username *string) error
 	DecCommentsVotes(ctx context.Context, username *string) error
-
-	Close() error
 }
 
 type Counters struct {

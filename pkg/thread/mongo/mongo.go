@@ -21,26 +21,18 @@ type Repository struct {
 	client     *mongo.Client
 }
 
-func NewRepository(cfg *config.Config, category string) (thread.Repository, error) {
+func NewRepository(cfg *config.Config, client *mongo.Client, category string) (thread.Repository, error) {
 
 	if cfg == nil {
 		return nil, errors.New("no cfg *config.Config provided")
 	}
 
+	if client == nil {
+		return nil, errors.New("no client *mongo.Client provided")
+	}
+
 	if category == "" {
 		return nil, errors.New("must supply a category for thread repisotory")
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), cfg.RequestTimeout)
-	defer cancel()
-
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(cfg.DatabaseURL))
-	if err != nil {
-		return nil, err
-	}
-
-	if err := client.Ping(ctx, nil); err != nil {
-		return nil, err
 	}
 
 	return &Repository{
@@ -157,12 +149,13 @@ func (repo *Repository) IncVote(ctx context.Context, slugID, slugTitle *string) 
 	ctx, cancel := context.WithTimeout(ctx, repo.cfg.RequestTimeout)
 	defer cancel()
 
-	res, err := repo.client.Database(repo.database).Collection(repo.collection).UpdateOne(ctx, filter, bson.D{
-		primitive.E{
-			Key: "$inc",
-			Value: bson.D{
-				primitive.E{Key: "counters.votes", Value: 1},
-			},
+	res, err := repo.client.Database(repo.database).Collection(repo.collection).UpdateOne(ctx, filter,
+		bson.D{primitive.E{
+			Key: "$set",
+			Value: bson.D{primitive.E{
+				Key:   "counters.votes",
+				Value: 1,
+			}},
 		}})
 	if err != nil {
 		return err
@@ -192,12 +185,13 @@ func (repo *Repository) DecVote(ctx context.Context, slugID, slugTitle *string) 
 	ctx, cancel := context.WithTimeout(ctx, repo.cfg.RequestTimeout)
 	defer cancel()
 
-	res, err := repo.client.Database(repo.database).Collection(repo.collection).UpdateOne(ctx, filter, bson.D{
-		primitive.E{
-			Key: "$dec",
-			Value: bson.D{
-				primitive.E{Key: "counters.votes", Value: 1},
-			},
+	res, err := repo.client.Database(repo.database).Collection(repo.collection).UpdateOne(ctx, filter,
+		bson.D{primitive.E{
+			Key: "$inc",
+			Value: bson.D{primitive.E{
+				Key:   "counters.votes",
+				Value: -1,
+			}},
 		}})
 	if err != nil {
 		return err
@@ -278,10 +272,4 @@ func (repo *Repository) DecComments(ctx context.Context, slugID, slugTitle *stri
 	}
 
 	return nil
-}
-
-func (repo *Repository) Close() error {
-	ctx, cancel := context.WithTimeout(context.Background(), repo.cfg.RequestTimeout)
-	defer cancel()
-	return repo.client.Disconnect(ctx)
 }

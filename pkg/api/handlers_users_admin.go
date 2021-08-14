@@ -63,6 +63,12 @@ func (svc *Service) SearchAdminUsersHandler(w http.ResponseWriter, r *http.Reque
 
 	ctx := r.Context()
 
+	claims, err := ClaimsFromContext(ctx)
+	if err != nil {
+		NewErrorResponse(w, r, http.StatusUnauthorized, err)
+		return
+	}
+
 	var username *string
 	if uname := r.URL.Query().Get("username"); uname != "" {
 		username = &uname
@@ -76,12 +82,6 @@ func (svc *Service) SearchAdminUsersHandler(w http.ResponseWriter, r *http.Reque
 	size, err := strconv.ParseInt(r.URL.Query().Get("size"), 10, 64)
 	if err != nil || size < 1 {
 		size = 100
-	}
-
-	claims, err := ClaimsFromContext(ctx)
-	if err != nil {
-		NewErrorResponse(w, r, http.StatusUnauthorized, err)
-		return
 	}
 
 	if claims.IsUser() {

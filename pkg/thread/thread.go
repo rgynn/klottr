@@ -28,8 +28,6 @@ type Repository interface {
 	DecVote(ctx context.Context, slugID, slugTitle *string) error
 	IncComments(ctx context.Context, slugID, slugTitle *string) error
 	DecComments(ctx context.Context, slugID, slugTitle *string) error
-
-	Close() error
 }
 
 type Counters struct {

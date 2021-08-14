@@ -101,6 +101,29 @@ func (svc *Service) JWTMiddleware(h http.Handler) http.Handler {
 
 		tokenString := strings.Replace(r.Header.Get("Authorization"), "Bearer ", "", 1)
 		if tokenString == "" {
+			h.ServeHTTP(w, r)
+			return
+		}
+
+		claims := new(JWTClaims)
+
+		_, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+			return []byte(svc.cfg.JWTSecret), nil
+		})
+		if err != nil {
+			NewErrorResponse(w, r, http.StatusBadRequest, errors.New("no valid jwt provided"))
+			return
+		}
+
+		h.ServeHTTP(w, r.WithContext(ClaimsContext(r.Context(), claims)))
+	})
+}
+
+func (svc *Service) RequiredJWTMiddleware(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		tokenString := strings.Replace(r.Header.Get("Authorization"), "Bearer ", "", 1)
+		if tokenString == "" {
 			NewErrorResponse(w, r, http.StatusUnauthorized, errors.New("no valid jwt provided"))
 			return
 		}

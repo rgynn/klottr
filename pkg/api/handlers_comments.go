@@ -2,10 +2,12 @@ package api
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/rgynn/klottr/pkg/comment"
 	"github.com/rgynn/klottr/pkg/thread"
+	"github.com/rgynn/ptrconv"
 )
 
 func (svc *Service) CreateCommentHandler(w http.ResponseWriter, r *http.Request) {
@@ -28,19 +30,31 @@ func (svc *Service) CreateCommentHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if err := m.ValidForSave(); err != nil {
-		NewErrorResponse(w, r, http.StatusBadRequest, err)
-		return
-	}
+	var thrd *thread.Model
 
 	switch category {
 	case "misc":
-		if _, err = svc.misc.Get(ctx, &slugID, &slugTitle); err != nil {
-			NewErrorResponse(w, r, http.StatusInternalServerError, err)
-			return
-		}
+		thrd, err = svc.misc.Get(ctx, &slugID, &slugTitle)
 	default:
 		NewErrorResponse(w, r, http.StatusInternalServerError, thread.ErrCategoryNotFound)
+		return
+	}
+	if err != nil {
+		NewErrorResponse(w, r, http.StatusInternalServerError, err)
+		return
+	}
+
+	m.ThreadID = thrd.ID
+	m.Username = claims.Username
+	m.Created = *ptrconv.TimePtr(time.Now().UTC())
+
+	if err := m.GenerateSlugs(); err != nil {
+		NewErrorResponse(w, r, http.StatusInternalServerError, err)
+		return
+	}
+
+	if err := m.ValidForSave(); err != nil {
+		NewErrorResponse(w, r, http.StatusBadRequest, err)
 		return
 	}
 
@@ -62,7 +76,13 @@ func (svc *Service) CreateCommentHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if err := svc.NoContentResponse(w, http.StatusCreated); err != nil {
+	result, err := svc.comments.Get(ctx, m.SlugID)
+	if err != nil {
+		NewErrorResponse(w, r, http.StatusInternalServerError, err)
+		return
+	}
+
+	if err := svc.MarshalJSONResponse(w, http.StatusCreated, result); err != nil {
 		NewErrorResponse(w, r, http.StatusInternalServerError, err)
 		return
 	}
@@ -74,7 +94,7 @@ func (svc *Service) GetCommentHandler(w http.ResponseWriter, r *http.Request) {
 	category := vars["category"]
 	slugID := vars["slug_id"]
 	slugTitle := vars["slug_title"]
-	commentID := vars["comment_id"]
+	commentSlugID := vars["comment_slug_id"]
 	ctx := r.Context()
 
 	_, err := ClaimsFromContext(ctx)
@@ -94,7 +114,7 @@ func (svc *Service) GetCommentHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := svc.comments.Get(ctx, &commentID)
+	result, err := svc.comments.Get(ctx, &commentSlugID)
 	if err != nil {
 		NewErrorResponse(w, r, http.StatusInternalServerError, err)
 		return
@@ -112,7 +132,7 @@ func (svc *Service) DeleteCommentHandler(w http.ResponseWriter, r *http.Request)
 	category := vars["category"]
 	slugID := vars["slug_id"]
 	slugTitle := vars["slug_title"]
-	commentID := vars["comment_id"]
+	commentSlugID := vars["comment_slug_id"]
 	ctx := r.Context()
 
 	claims, err := ClaimsFromContext(ctx)
@@ -132,18 +152,18 @@ func (svc *Service) DeleteCommentHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	cmnt, err := svc.comments.Get(ctx, &commentID)
+	cmnt, err := svc.comments.Get(ctx, &commentSlugID)
 	if err != nil {
 		NewErrorResponse(w, r, http.StatusInternalServerError, err)
 		return
 	}
 
-	if cmnt.UserID.String() != *claims.UserID {
+	if cmnt.Username != nil || *cmnt.Username != *claims.Username {
 		NewErrorResponse(w, r, http.StatusUnauthorized, err)
 		return
 	}
 
-	if err := svc.comments.Delete(ctx, &commentID); err != nil {
+	if err := svc.comments.Delete(ctx, &commentSlugID); err != nil {
 		NewErrorResponse(w, r, http.StatusInternalServerError, err)
 		return
 	}
@@ -165,10 +185,10 @@ func (svc *Service) UpVoteCommentHandler(w http.ResponseWriter, r *http.Request)
 	category := vars["category"]
 	slugID := vars["slug_id"]
 	slugTitle := vars["slug_title"]
-	commentID := vars["comment_id"]
+	commentSlugID := vars["comment_slug_id"]
 	ctx := r.Context()
 
-	claims, err := ClaimsFromContext(ctx)
+	_, err := ClaimsFromContext(ctx)
 	if err != nil {
 		NewErrorResponse(w, r, http.StatusUnauthorized, err)
 		return
@@ -185,12 +205,18 @@ func (svc *Service) UpVoteCommentHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if err := svc.comments.IncVotes(ctx, &commentID); err != nil {
+	cmnt, err := svc.comments.Get(ctx, &commentSlugID)
+	if err != nil {
+		NewErrorResponse(w, r, http.StatusNotFound, thread.ErrCategoryNotFound)
+		return
+	}
+
+	if err := svc.comments.IncVotes(ctx, &commentSlugID); err != nil {
 		NewErrorResponse(w, r, http.StatusInternalServerError, err)
 		return
 	}
 
-	if err := svc.users.IncCommentsVotes(ctx, claims.Username); err != nil {
+	if err := svc.users.IncCommentsVotes(ctx, cmnt.Username); err != nil {
 		NewErrorResponse(w, r, http.StatusInternalServerError, err)
 		return
 	}
@@ -207,10 +233,10 @@ func (svc *Service) DownVoteCommentHandler(w http.ResponseWriter, r *http.Reques
 	category := vars["category"]
 	slugID := vars["slug_id"]
 	slugTitle := vars["slug_title"]
-	commentID := vars["comment_id"]
+	commentSlugID := vars["comment_slug_id"]
 	ctx := r.Context()
 
-	claims, err := ClaimsFromContext(ctx)
+	_, err := ClaimsFromContext(ctx)
 	if err != nil {
 		NewErrorResponse(w, r, http.StatusUnauthorized, err)
 		return
@@ -227,12 +253,18 @@ func (svc *Service) DownVoteCommentHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if err := svc.comments.DecVotes(ctx, &commentID); err != nil {
+	cmnt, err := svc.comments.Get(ctx, &commentSlugID)
+	if err != nil {
+		NewErrorResponse(w, r, http.StatusNotFound, thread.ErrCategoryNotFound)
+		return
+	}
+
+	if err := svc.comments.DecVotes(ctx, &commentSlugID); err != nil {
 		NewErrorResponse(w, r, http.StatusInternalServerError, err)
 		return
 	}
 
-	if err := svc.users.DecCommentsVotes(ctx, claims.Username); err != nil {
+	if err := svc.users.DecCommentsVotes(ctx, cmnt.Username); err != nil {
 		NewErrorResponse(w, r, http.StatusInternalServerError, err)
 		return
 	}

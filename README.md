@@ -1,6 +1,6 @@
 # klottr backend
 
-Service in the same vein as hackernews or reddit. Threads, comments, users, upvotes. Content posted by users to site only available for 24h.
+Service in the same vein as hackernews or reddit. Threads, comments, users, upvotes. Content posted by users to site only available for a week.
 
 ## Required .env file to run locally
 
@@ -20,6 +20,20 @@ DATABASE_NAME=***
 JWT_SECRET=***
 ```
 
-## How to run
-1. Make sure .env file is present
-2. Run command: ``make run`` or ``go run main.go``
+## Prerequisites
+* MongoDB database provisioned, and .env file DATABASE_URL and DATABASE_NAME connection string filled in correctly
+
+## How to run locally
+1. Make sure .env file is present and filled in correctly
+2. Run ``make db_seed`` to setup collections and indexes
+3. Run ``make test_int`` to make sure all intergration test run OK
+4. Run ``make db_seed`` again to reset database collections
+5. Run command: ``make run`` or ``go run main.go`` to run the service locally
+
+## Docker
+Build a docker image with the ``make build_docker`` target.
+Make sure the environment variables are all provided when running the container.
+
+## Testing
+Unit testing easily perfomed by either using ``go test./...`` or ``make test``
+Run integration tests using ``make test_intg``
