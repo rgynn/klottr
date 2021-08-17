@@ -8,6 +8,8 @@ import (
 	"net/http"
 
 	"github.com/rgynn/klottr/pkg/comment"
+	"github.com/rgynn/klottr/pkg/user"
+	"github.com/rgynn/ptrconv"
 )
 
 func (tester *Tester) createComment(token *string, category string, slugID, slugTitle *string) (*comment.Model, error) {
@@ -58,9 +60,18 @@ func (tester *Tester) createComment(token *string, category string, slugID, slug
 
 func (tester *Tester) upvoteComment(token *string, category string, slugID, slugTitle, cmntSlugID *string) error {
 
-	url := fmt.Sprintf("http://%s/api/1.0/c/%s/t/%s/%s/comments/%s/upvote", tester.cfg.Addr, category, *slugID, *slugTitle, *cmntSlugID)
+	url := fmt.Sprintf("http://%s/api/1.0/c/%s/t/%s/%s/comments/%s/vote", tester.cfg.Addr, category, *slugID, *slugTitle, *cmntSlugID)
 
-	req, err := http.NewRequest(http.MethodPost, url, nil)
+	reqbody, err := json.Marshal(&user.Vote{
+		SlugType: ptrconv.StringPtr("comments"),
+		SlugID:   cmntSlugID,
+		Value:    ptrconv.Int8Ptr(1),
+	})
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(reqbody))
 	if err != nil {
 		return err
 	}
@@ -92,9 +103,18 @@ func (tester *Tester) upvoteComment(token *string, category string, slugID, slug
 
 func (tester *Tester) downvoteComment(token *string, category string, slugID, slugTitle, cmntSlugID *string) error {
 
-	url := fmt.Sprintf("http://%s/api/1.0/c/%s/t/%s/%s/comments/%s/downvote", tester.cfg.Addr, category, *slugID, *slugTitle, *cmntSlugID)
+	url := fmt.Sprintf("http://%s/api/1.0/c/%s/t/%s/%s/comments/%s/vote", tester.cfg.Addr, category, *slugID, *slugTitle, *cmntSlugID)
 
-	req, err := http.NewRequest(http.MethodPost, url, nil)
+	reqbody, err := json.Marshal(&user.Vote{
+		SlugType: ptrconv.StringPtr("comments"),
+		SlugID:   cmntSlugID,
+		Value:    ptrconv.Int8Ptr(-1),
+	})
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(reqbody))
 	if err != nil {
 		return err
 	}

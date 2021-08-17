@@ -19,15 +19,10 @@ var ErrNotFound = errors.New("thread not found")
 
 type Repository interface {
 	List(ctx context.Context, from, size int64) ([]*Model, error)
-
 	Create(ctx context.Context, m *Model) error
 	Get(ctx context.Context, slugID, slugTitle *string) (*Model, error)
 	Delete(ctx context.Context, slugID, slugTitle *string) error
-
-	IncVote(ctx context.Context, slugID, slugTitle *string) error
-	DecVote(ctx context.Context, slugID, slugTitle *string) error
-	IncComments(ctx context.Context, slugID, slugTitle *string) error
-	DecComments(ctx context.Context, slugID, slugTitle *string) error
+	IncCounter(ctx context.Context, slugID, slugTitle, field *string, value int8) error
 }
 
 type Counters struct {
@@ -40,7 +35,6 @@ type Model struct {
 	Username  *string             `json:"username"  bson:"username"`
 	SlugID    *string             `json:"slug_id"  bson:"slug_id"`
 	SlugTitle *string             `json:"slug_title"  bson:"slug_title"`
-	Category  *string             `json:"category"  bson:"category"`
 	Title     *string             `json:"title,omitempty"  bson:"title,omitempty"`
 	URL       *string             `json:"url,omitempty"  bson:"url,omitempty"`
 	Content   string              `json:"content"  bson:"content"`
@@ -61,10 +55,6 @@ func (m *Model) ValidForSave() error {
 
 	if m.Username == nil {
 		return errors.New("no m.Username provided for new thread")
-	}
-
-	if m.Category == nil {
-		return errors.New("no m.Category provided for new thread")
 	}
 
 	if m.Title == nil {

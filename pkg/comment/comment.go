@@ -20,8 +20,7 @@ type Repository interface {
 	ListByUsername(ctx context.Context, username *string, from, size int64) ([]*Model, error)
 	Delete(ctx context.Context, slugID *string) error
 
-	IncVotes(ctx context.Context, slugID *string) error
-	DecVotes(ctx context.Context, slugID *string) error
+	IncVotes(ctx context.Context, slugID *string, value int8) error
 }
 
 type Model struct {

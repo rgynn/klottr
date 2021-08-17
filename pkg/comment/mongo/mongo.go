@@ -144,7 +144,7 @@ func (repo *Repository) Delete(ctx context.Context, slugID *string) error {
 	return nil
 }
 
-func (repo *Repository) IncVotes(ctx context.Context, slugID *string) error {
+func (repo *Repository) IncVotes(ctx context.Context, slugID *string, value int8) error {
 
 	if slugID == nil {
 		return errors.New("no slugID provided")
@@ -159,36 +159,7 @@ func (repo *Repository) IncVotes(ctx context.Context, slugID *string) error {
 		primitive.E{
 			Key: "$inc",
 			Value: bson.D{
-				primitive.E{Key: "votes", Value: 1},
-			},
-		}})
-	if err != nil {
-		return err
-	}
-
-	if res.ModifiedCount != 1 {
-		return comment.ErrNotFound
-	}
-
-	return nil
-}
-
-func (repo *Repository) DecVotes(ctx context.Context, slugID *string) error {
-
-	if slugID == nil {
-		return errors.New("no slugID provided")
-	}
-
-	ctx, cancel := context.WithTimeout(ctx, repo.cfg.RequestTimeout)
-	defer cancel()
-
-	res, err := repo.client.Database(repo.database).Collection(repo.collection).UpdateOne(ctx, bson.D{
-		primitive.E{Key: "slug_id", Value: *slugID},
-	}, bson.D{
-		primitive.E{
-			Key: "$inc",
-			Value: bson.D{
-				primitive.E{Key: "votes", Value: -1},
+				primitive.E{Key: "votes", Value: value},
 			},
 		}})
 	if err != nil {

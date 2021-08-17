@@ -3,6 +3,7 @@ package mongo
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/rgynn/klottr/pkg/config"
@@ -43,6 +44,11 @@ func (repo *Repository) Create(ctx context.Context, m *user.Model) error {
 
 	if m == nil {
 		return errors.New("no m *user.Model provided")
+	}
+
+	m.Votes = user.Votes{
+		Threads:  map[string]int8{},
+		Comments: map[string]int8{},
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, repo.cfg.RequestTimeout)
@@ -193,10 +199,14 @@ func (repo *Repository) Delete(ctx context.Context, username, role *string) erro
 	return nil
 }
 
-func (repo *Repository) IncThreadsCounter(ctx context.Context, username *string) error {
+func (repo *Repository) IncCounter(ctx context.Context, username, field *string, value int8) error {
 
 	if username == nil {
 		return errors.New("no username provided")
+	}
+
+	if field == nil {
+		return errors.New("no field provided")
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, repo.cfg.RequestTimeout)
@@ -209,7 +219,7 @@ func (repo *Repository) IncThreadsCounter(ctx context.Context, username *string)
 		bson.D{primitive.E{
 			Key: "$inc",
 			Value: bson.D{
-				primitive.E{Key: "counters.num.threads", Value: 1},
+				primitive.E{Key: *field, Value: value},
 			},
 		}},
 	)
@@ -224,10 +234,14 @@ func (repo *Repository) IncThreadsCounter(ctx context.Context, username *string)
 	return nil
 }
 
-func (repo *Repository) DecThreadsCounter(ctx context.Context, username *string) error {
+func (repo *Repository) UpsertVote(ctx context.Context, username *string, vote *user.Vote) error {
 
 	if username == nil {
 		return errors.New("no username provided")
+	}
+
+	if vote == nil {
+		return errors.New("no vote provided")
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, repo.cfg.RequestTimeout)
@@ -238,195 +252,9 @@ func (repo *Repository) DecThreadsCounter(ctx context.Context, username *string)
 			Key: "username", Value: *username,
 		}},
 		bson.D{primitive.E{
-			Key: "$inc",
+			Key: "$set",
 			Value: bson.D{
-				primitive.E{Key: "counters.num.threads", Value: -1},
-			},
-		}},
-	)
-	if err != nil {
-		return err
-	}
-
-	if res.MatchedCount != 1 {
-		return user.ErrNotFound
-	}
-
-	return nil
-}
-
-func (repo *Repository) IncCommentsCounter(ctx context.Context, username *string) error {
-
-	if username == nil {
-		return errors.New("no username provided")
-	}
-
-	ctx, cancel := context.WithTimeout(ctx, repo.cfg.RequestTimeout)
-	defer cancel()
-
-	res, err := repo.client.Database(repo.database).Collection(repo.collection).UpdateOne(ctx,
-		bson.D{primitive.E{
-			Key: "username", Value: *username,
-		}},
-		bson.D{primitive.E{
-			Key: "$inc",
-			Value: bson.D{
-				primitive.E{Key: "counters.num.comments", Value: 1},
-			},
-		}},
-	)
-	if err != nil {
-		return err
-	}
-
-	if res.MatchedCount != 1 {
-		return user.ErrNotFound
-	}
-
-	return nil
-}
-
-func (repo *Repository) DecCommentsCounter(ctx context.Context, username *string) error {
-
-	if username == nil {
-		return errors.New("no username provided")
-	}
-
-	ctx, cancel := context.WithTimeout(ctx, repo.cfg.RequestTimeout)
-	defer cancel()
-
-	res, err := repo.client.Database(repo.database).Collection(repo.collection).UpdateOne(ctx,
-		bson.D{primitive.E{
-			Key: "username", Value: *username,
-		}},
-		bson.D{primitive.E{
-			Key: "$inc",
-			Value: bson.D{
-				primitive.E{Key: "counters.num.comments", Value: -1},
-			},
-		}},
-	)
-	if err != nil {
-		return err
-	}
-
-	if res.MatchedCount != 1 {
-		return user.ErrNotFound
-	}
-
-	return nil
-}
-
-func (repo *Repository) IncThreadsVotes(ctx context.Context, username *string) error {
-
-	if username == nil {
-		return errors.New("no username provided")
-	}
-
-	ctx, cancel := context.WithTimeout(ctx, repo.cfg.RequestTimeout)
-	defer cancel()
-
-	res, err := repo.client.Database(repo.database).Collection(repo.collection).UpdateOne(ctx,
-		bson.D{primitive.E{
-			Key: "username", Value: *username,
-		}},
-		bson.D{primitive.E{
-			Key: "$inc",
-			Value: bson.D{
-				primitive.E{Key: "counters.votes.threads", Value: 1},
-			},
-		}},
-	)
-	if err != nil {
-		return err
-	}
-
-	if res.MatchedCount != 1 {
-		return user.ErrNotFound
-	}
-
-	return nil
-}
-
-func (repo *Repository) DecThreadsVotes(ctx context.Context, username *string) error {
-
-	if username == nil {
-		return errors.New("no username provided")
-	}
-
-	ctx, cancel := context.WithTimeout(ctx, repo.cfg.RequestTimeout)
-	defer cancel()
-
-	res, err := repo.client.Database(repo.database).Collection(repo.collection).UpdateOne(ctx,
-		bson.D{primitive.E{
-			Key: "username", Value: *username,
-		}},
-		bson.D{primitive.E{
-			Key: "$inc",
-			Value: bson.D{
-				primitive.E{Key: "counters.votes.threads", Value: -1},
-			},
-		}},
-	)
-	if err != nil {
-		return err
-	}
-
-	if res.MatchedCount != 1 {
-		return user.ErrNotFound
-	}
-
-	return nil
-}
-
-func (repo *Repository) IncCommentsVotes(ctx context.Context, username *string) error {
-
-	if username == nil {
-		return errors.New("no username provided")
-	}
-
-	ctx, cancel := context.WithTimeout(ctx, repo.cfg.RequestTimeout)
-	defer cancel()
-
-	res, err := repo.client.Database(repo.database).Collection(repo.collection).UpdateOne(ctx,
-		bson.D{primitive.E{
-			Key: "username", Value: *username,
-		}},
-		bson.D{primitive.E{
-			Key: "$inc",
-			Value: bson.D{
-				primitive.E{Key: "counters.votes.comments", Value: 1},
-			},
-		}},
-	)
-	if err != nil {
-		return err
-	}
-
-	if res.MatchedCount != 1 {
-		return user.ErrNotFound
-	}
-
-	return nil
-}
-
-func (repo *Repository) DecCommentsVotes(ctx context.Context, username *string) error {
-
-	if username == nil {
-		return errors.New("no username provided")
-	}
-
-	ctx, cancel := context.WithTimeout(ctx, repo.cfg.RequestTimeout)
-	defer cancel()
-
-	res, err := repo.client.Database(repo.database).Collection(repo.collection).UpdateOne(ctx,
-		bson.D{primitive.E{
-			Key: "username", Value: *username,
-		}},
-		bson.D{primitive.E{
-			Key: "$inc",
-			Value: bson.D{
-				primitive.E{Key: "counters.votes.comments", Value: -1},
+				primitive.E{Key: fmt.Sprintf("votes.%s.%s", *vote.SlugType, *vote.SlugID), Value: *vote.Value},
 			},
 		}},
 	)

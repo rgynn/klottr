@@ -3,6 +3,7 @@ package user
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 	"unicode/utf8"
 
@@ -24,16 +25,8 @@ type Repository interface {
 	GetByUsername(ctx context.Context, username *string) (*Model, error)
 	Deactivate(ctx context.Context, username, role *string) error
 	Delete(ctx context.Context, username, role *string) error
-
-	IncThreadsCounter(ctx context.Context, username *string) error
-	DecThreadsCounter(ctx context.Context, username *string) error
-	IncCommentsCounter(ctx context.Context, username *string) error
-	DecCommentsCounter(ctx context.Context, username *string) error
-
-	IncThreadsVotes(ctx context.Context, username *string) error
-	DecThreadsVotes(ctx context.Context, username *string) error
-	IncCommentsVotes(ctx context.Context, username *string) error
-	DecCommentsVotes(ctx context.Context, username *string) error
+	IncCounter(ctx context.Context, username, field *string, value int8) error
+	UpsertVote(ctx context.Context, username *string, vote *Vote) error
 }
 
 type Counters struct {
@@ -46,6 +39,49 @@ type Counter struct {
 	Comments uint32 `json:"comments"  bson:"comments"`
 }
 
+type Votes struct {
+	Threads  map[string]int8 `json:"threads" bson:"threads"`
+	Comments map[string]int8 `json:"comments" bson:"comments"`
+}
+
+type Vote struct {
+	SlugType *string `json:"slug_type" bson:"slug_type"`
+	SlugID   *string `json:"slug_id" bson:"slug_id"`
+	Value    *int8   `json:"value" bson:"value"`
+}
+
+func (v *Vote) ValidForSave() error {
+
+	if v == nil {
+		return errors.New("no vote provided")
+	}
+
+	if v.SlugType == nil {
+		return errors.New("no v.SlugType provided")
+	}
+
+	switch *v.SlugType {
+	case "comments", "threads":
+		break
+	default:
+		return fmt.Errorf("invalid v.SlugType provided: %s", *v.SlugType)
+	}
+
+	if v.SlugID == nil {
+		return errors.New("no v.SlugID provided")
+	}
+
+	if v.Value == nil {
+		return errors.New("no v.Value provided")
+	}
+
+	if *v.Value < -1 || *v.Value > 1 {
+		return errors.New("v.Value cannot be lower than -1 or greater than 1")
+	}
+
+	return nil
+}
+
 type Model struct {
 	ID           *primitive.ObjectID `json:"id" bson:"_id,omitempty"`
 	Role         *string             `json:"role" bson:"role"`
@@ -56,6 +92,7 @@ type Model struct {
 	Email        *string             `json:"email,omitempty"  bson:"email,omitempty"`
 	EmailHash    *string             `json:"email_hash,omitempty"  bson:"email_hash,omitempty"`
 	Counters     Counters            `json:"counters"  bson:"counters"`
+	Votes        Votes               `json:"votes" bson:"votes"`
 	Created      *time.Time          `json:"created"  bson:"created"`
 	Updated      *time.Time          `json:"updated,omitempty"  bson:"updated,omitempty"`
 	Deactivated  *time.Time          `json:"deactivated,omitempty"  bson:"deactivated,omitempty"`

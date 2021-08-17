@@ -43,18 +43,16 @@ func main() {
 	v1.HandleFunc("/auth/deactivate", api.DeactivateHandler).Methods(http.MethodPost)
 
 	// Threads
-	v1.HandleFunc("/c/{category}", api.CreateCategoryThreadHandler).Methods(http.MethodPost)
-	v1.HandleFunc("/c/{category}", api.ListCategoryThreadsHandler).Methods(http.MethodGet)
-	v1.HandleFunc("/c/{category}/t/{slug_id}/{slug_title}", api.GetCategoryThreadHandler).Methods(http.MethodGet)
-	v1.HandleFunc("/c/{category}/t/{slug_id}/{slug_title}/upvote", api.UpVoteCategoryThreadHandler).Methods(http.MethodPost)
-	v1.HandleFunc("/c/{category}/t/{slug_id}/{slug_title}/downvote", api.DownVoteCategoryThreadHandler).Methods(http.MethodPost)
+	v1.HandleFunc("/c/{category}", api.CreateThreadHandler).Methods(http.MethodPost)
+	v1.HandleFunc("/c/{category}", api.ListThreadsHandler).Methods(http.MethodGet)
+	v1.HandleFunc("/c/{category}/t/{slug_id}/{slug_title}", api.GetThreadHandler).Methods(http.MethodGet)
+	v1.HandleFunc("/c/{category}/t/{slug_id}/{slug_title}/vote", api.VoteThreadHandler).Methods(http.MethodPost)
 
 	// Comments
 	v1.HandleFunc("/c/{category}/t/{slug_id}/{slug_title}/comments", api.CreateCommentHandler).Methods(http.MethodPost)
 	v1.HandleFunc("/c/{category}/t/{slug_id}/{slug_title}/comments/{comment_slug_id}", api.GetCommentHandler).Methods(http.MethodGet)
 	v1.HandleFunc("/c/{category}/t/{slug_id}/{slug_title}/comments/{comment_slug_id}", api.DeleteCommentHandler).Methods(http.MethodDelete)
-	v1.HandleFunc("/c/{category}/t/{slug_id}/{slug_title}/comments/{comment_slug_id}/upvote", api.UpVoteCommentHandler).Methods(http.MethodPost)
-	v1.HandleFunc("/c/{category}/t/{slug_id}/{slug_title}/comments/{comment_slug_id}/downvote", api.DownVoteCommentHandler).Methods(http.MethodPost)
+	v1.HandleFunc("/c/{category}/t/{slug_id}/{slug_title}/comments/{comment_slug_id}/vote", api.VoteCommentHandler).Methods(http.MethodPost)
 
 	srv := &http.Server{
 		IdleTimeout:  cfg.IdleTimeout,

@@ -52,10 +52,12 @@ func (tester *Tester) Run() error {
 	// Test threads
 
 	for _, category := range tester.categories {
+
 		thrd, err := tester.createThread(token, category)
 		if err != nil {
 			return err
 		}
+
 		if err := tester.listThreads(token, category); err != nil {
 			return err
 		}
@@ -71,6 +73,8 @@ func (tester *Tester) Run() error {
 		if err := tester.validateVotes(token, category, thrd.SlugID, thrd.SlugTitle); err != nil {
 			return err
 		}
+
+		// thread comments
 		cmnt, err := tester.createComment(token, category, thrd.SlugID, thrd.SlugTitle)
 		if err != nil {
 			return err

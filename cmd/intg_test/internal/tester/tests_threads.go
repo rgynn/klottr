@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	"github.com/rgynn/klottr/pkg/thread"
+	"github.com/rgynn/klottr/pkg/user"
 	"github.com/rgynn/ptrconv"
 )
 
@@ -133,10 +134,6 @@ func (tester *Tester) getThread(token *string, category string, slugID, slugTitl
 		return err
 	}
 
-	if *response.Category != category {
-		return fmt.Errorf("expected category to be: %s, got: %s", category, *response.Category)
-	}
-
 	if *response.SlugID != *slugID {
 		return fmt.Errorf("expected slug_id to be: %s, got: %s", *slugID, *response.SlugID)
 	}
@@ -152,9 +149,18 @@ func (tester *Tester) getThread(token *string, category string, slugID, slugTitl
 
 func (tester *Tester) upvoteThread(token *string, category string, slugID, slugTitle *string) error {
 
-	url := fmt.Sprintf("http://%s/api/1.0/c/%s/t/%s/%s/upvote", tester.cfg.Addr, category, *slugID, *slugTitle)
+	url := fmt.Sprintf("http://%s/api/1.0/c/%s/t/%s/%s/vote", tester.cfg.Addr, category, *slugID, *slugTitle)
 
-	req, err := http.NewRequest(http.MethodPost, url, nil)
+	reqbody, err := json.Marshal(&user.Vote{
+		SlugType: ptrconv.StringPtr("threads"),
+		SlugID:   slugID,
+		Value:    ptrconv.Int8Ptr(1),
+	})
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(reqbody))
 	if err != nil {
 		return err
 	}
@@ -166,11 +172,17 @@ func (tester *Tester) upvoteThread(token *string, category string, slugID, slugT
 		return err
 	}
 
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
 	switch resp.StatusCode {
 	case http.StatusAccepted:
 		break
 	default:
-		return fmt.Errorf("expected status %d in upvote response, got: %d", http.StatusAccepted, resp.StatusCode)
+		return fmt.Errorf("expected status %d in upvote response, got: %d, body: %s", http.StatusAccepted, resp.StatusCode, string(body))
 	}
 
 	tester.logger.Infof("OK: Thread upvoted")
@@ -180,9 +192,18 @@ func (tester *Tester) upvoteThread(token *string, category string, slugID, slugT
 
 func (tester *Tester) downvoteThread(token *string, category string, slugID, slugTitle *string) error {
 
-	url := fmt.Sprintf("http://%s/api/1.0/c/%s/t/%s/%s/downvote", tester.cfg.Addr, category, *slugID, *slugTitle)
+	url := fmt.Sprintf("http://%s/api/1.0/c/%s/t/%s/%s/vote", tester.cfg.Addr, category, *slugID, *slugTitle)
 
-	req, err := http.NewRequest(http.MethodPost, url, nil)
+	reqbody, err := json.Marshal(&user.Vote{
+		SlugType: ptrconv.StringPtr("threads"),
+		SlugID:   slugID,
+		Value:    ptrconv.Int8Ptr(-1),
+	})
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(reqbody))
 	if err != nil {
 		return err
 	}
@@ -194,11 +215,17 @@ func (tester *Tester) downvoteThread(token *string, category string, slugID, slu
 		return err
 	}
 
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
 	switch resp.StatusCode {
 	case http.StatusAccepted:
 		break
 	default:
-		return fmt.Errorf("expected status %d in upvote response, got: %d", http.StatusAccepted, resp.StatusCode)
+		return fmt.Errorf("expected status %d in upvote response, got: %d, body: %s", http.StatusAccepted, resp.StatusCode, string(body))
 	}
 
 	tester.logger.Infof("OK: Thread downvoted")
@@ -241,7 +268,7 @@ func (tester *Tester) validateVotes(token *string, category string, slugID, slug
 	}
 
 	if response.Counters.Votes != 0 {
-		return fmt.Errorf("expected num votes to be 0, got: %d", response.Counters.Votes)
+		return fmt.Errorf("expected num votes to be 0, got: %d, body: %s", response.Counters.Votes, string(body))
 	}
 
 	tester.logger.Infof("OK: Num votes validated")
