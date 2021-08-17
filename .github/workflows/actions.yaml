@@ -1,0 +1,15 @@
+---
+on:
+  pull_request:
+    branches:
+      - master
+name: Unit test klottr
+jobs:
+  steps:
+    - uses: actions/checkout@v2
+    - uses: actions/setup-go@v2
+      with:
+        go-version: '^1.17.' # The Go version to download (if necessary) and use.
+    - run: go version
+    - run: make test
+    - run: make build
