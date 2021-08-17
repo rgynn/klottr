@@ -1,0 +1,27 @@
+---
+on:
+  push:
+    branches:
+      - master
+jobs:
+  release:
+    name: Create release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - id: date
+        run: echo "::set-output name=date::$(date +'%Y-%m-%dT%H:%M:%SZ')"
+      - uses: wangyoucao577/go-release-action@v1.19
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          goos: linux
+          goarch: amd64
+          goversion: 1.17
+          binary_name: klottr
+          extra_files: README.md
+          sha256sum: TRUE
+          md5sum: TRUE
+          executable_compression: upx
+          release_tag: dev
+          overwrite: true
+          ldflags: -X github.com/rgynn/klottr/pkg/config.VERSION=${{github.sha}} -X github.com/rgynn/klottr/pkg/config.BUILDDATE=${{ steps.date.outputs.date }}
