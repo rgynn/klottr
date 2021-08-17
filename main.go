@@ -37,6 +37,10 @@ func main() {
 
 	v1 := r.PathPrefix("/api/1.0").Subrouter()
 
+	// Version
+	v1.HandleFunc("/version", api.VersionHandler).Methods(http.MethodGet)
+	v1.HandleFunc("/healthz", api.HealthHandler).Methods(http.MethodGet)
+
 	// Auth
 	v1.HandleFunc("/auth/signin", api.SignInHandler).Methods(http.MethodPost)
 	v1.HandleFunc("/auth/signup", api.SignUpHandler).Methods(http.MethodPost)
@@ -62,6 +66,7 @@ func main() {
 		Handler:      r,
 	}
 
+	logrus.Infof("Runing version: %s, built: %s\n", cfg.Version, cfg.BuildDate)
 	logrus.Infof("Listening on http://%s\n", cfg.Addr)
 	if err := srv.ListenAndServe(); err != nil {
 		log.Fatal(err)

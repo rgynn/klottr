@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/rgynn/ptrconv"
+	"github.com/sirupsen/logrus"
 )
 
 // ErrorResponse for api
@@ -18,6 +19,17 @@ type ErrorResponse struct {
 }
 
 func NewErrorResponse(w http.ResponseWriter, r *http.Request, status int, inputerr error) {
+
+	ctx := r.Context()
+
+	logger, err := LoggerFromContext(ctx)
+	if err != nil {
+		logger = logrus.New().WithFields(logrus.Fields{
+			"method": r.Method,
+			"path":   r.URL.Path,
+			"query":  r.URL.Query().Encode(),
+		})
+	}
 
 	reqid, err := RequestIDFromContext(r.Context())
 	if err != nil {
@@ -34,14 +46,18 @@ func NewErrorResponse(w http.ResponseWriter, r *http.Request, status int, inpute
 	})
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(err.Error()))
+		if _, err := w.Write([]byte(err.Error())); err != nil {
+			logger.Debug(err)
+		}
 		return
 	}
 
 	w.WriteHeader(status)
 	if _, err := w.Write(body); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(err.Error()))
+		if _, err := w.Write([]byte(err.Error())); err != nil {
+			logger.Debug(err)
+		}
 		return
 	}
 }

@@ -11,6 +11,11 @@ import (
 	"github.com/joho/godotenv"
 )
 
+var (
+	VERSION   = ""
+	BUILDDATE = ""
+)
+
 type Config struct {
 	Debug                 bool
 	Addr                  string
@@ -24,6 +29,8 @@ type Config struct {
 	DatabaseName          string
 	DatabaseURL           string
 	JWTSecret             string
+	Version               string
+	BuildDate             string
 }
 
 func NewFromEnv(filenames ...string) (*Config, error) {
@@ -107,5 +114,7 @@ func NewFromEnv(filenames ...string) (*Config, error) {
 		DatabaseName:          dbName,
 		DatabaseURL:           dbURL,
 		JWTSecret:             jwtSecret,
+		Version:               VERSION,
+		BuildDate:             BUILDDATE,
 	}, nil
 }
