@@ -12,7 +12,12 @@ import (
 
 func main() {
 
-	cfg, err := config.NewFromEnv()
+	flags, err := config.GetFlags()
+	if err != nil {
+		logrus.Fatal(err)
+	}
+
+	cfg, err := config.NewFromEnv(flags.EnvFiles...)
 	if err != nil {
 		logrus.Fatal(err)
 	}

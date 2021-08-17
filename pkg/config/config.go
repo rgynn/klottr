@@ -2,6 +2,7 @@ package config
 
 import (
 	"errors"
+	"flag"
 	"fmt"
 	"os"
 	"strconv"
@@ -35,8 +36,10 @@ type Config struct {
 
 func NewFromEnv(filenames ...string) (*Config, error) {
 
-	if err := godotenv.Load(filenames...); err != nil {
-		return nil, fmt.Errorf("failed to get env variables: %w", err)
+	if len(filenames) > 0 {
+		if err := godotenv.Load(filenames...); err != nil {
+			return nil, err
+		}
 	}
 
 	host := os.Getenv("HOST")
@@ -101,6 +104,14 @@ func NewFromEnv(filenames ...string) (*Config, error) {
 		return nil, errors.New("no JWT_SECRET env variable set")
 	}
 
+	if VERSION == "" {
+		VERSION = "dev"
+	}
+
+	if BUILDDATE == "" {
+		BUILDDATE = time.Now().UTC().Format(time.RFC3339)
+	}
+
 	return &Config{
 		Debug:                 debug,
 		Addr:                  fmt.Sprintf("%s:%s", host, port),
@@ -116,5 +127,24 @@ func NewFromEnv(filenames ...string) (*Config, error) {
 		JWTSecret:             jwtSecret,
 		Version:               VERSION,
 		BuildDate:             BUILDDATE,
+	}, nil
+}
+
+type Flags struct {
+	EnvFiles []string
+}
+
+func GetFlags() (*Flags, error) {
+
+	envFilesFlag := flag.String("env-files", "", ".env files to use, comma separated")
+	flag.Parse()
+
+	var envFiles []string
+	if envFilesFlag != nil && *envFilesFlag != "" {
+		envFiles = strings.Split(*envFilesFlag, ",")
+	}
+
+	return &Flags{
+		EnvFiles: envFiles,
 	}, nil
 }
