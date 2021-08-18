@@ -3,11 +3,14 @@ package api
 import (
 	"context"
 	"errors"
+	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt"
+	"github.com/gorilla/mux"
 	"github.com/rgynn/klottr/pkg/helper"
 	"github.com/rgynn/klottr/pkg/user"
 	"github.com/rgynn/ptrconv"
@@ -157,4 +160,48 @@ func (claims *JWTClaims) IsAdmin() bool {
 
 func (claims *JWTClaims) IsUser() bool {
 	return ptrconv.StringPtrString(claims.Role) == "user"
+}
+
+// Response Recorder middleware
+
+type responseRecorder struct {
+	http.ResponseWriter
+	Status  int
+	Started time.Time
+}
+
+func (rec *responseRecorder) WriteHeader(code int) {
+	rec.Status = code
+	rec.ResponseWriter.WriteHeader(code)
+}
+
+func (svc *Service) RequestMetricsMiddleware(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		rec := &responseRecorder{
+			ResponseWriter: w,
+			Status:         20,
+			Started:        time.Now().UTC(),
+		}
+
+		h.ServeHTTP(rec, r)
+
+		tmp, err := mux.CurrentRoute(r).GetPathTemplate()
+		if err != nil {
+			log.Panic(err)
+		}
+
+		metricServedRequests.WithLabelValues(
+			r.Method,
+			tmp,
+			r.URL.Query().Encode(),
+			fmt.Sprintf("%d", rec.Status),
+		).Inc()
+
+		metricDurationSeconds.WithLabelValues(
+			tmp,
+			r.Method,
+			fmt.Sprintf("%d", rec.Status),
+		).Observe(float64(time.Since(rec.Started).Seconds()))
+	})
 }

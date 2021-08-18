@@ -35,6 +35,7 @@ func main() {
 	r := mux.NewRouter()
 
 	r.Use(
+		api.RequestMetricsMiddleware,
 		api.RequestIDMiddleware,
 		api.ContextLoggerMiddleware,
 		api.JWTMiddleware,
@@ -45,6 +46,7 @@ func main() {
 	// Version
 	v1.HandleFunc("/version", api.VersionHandler).Methods(http.MethodGet)
 	v1.HandleFunc("/healthz", api.HealthHandler).Methods(http.MethodGet)
+	v1.HandleFunc("/metrics", api.MetricsHandler).Methods(http.MethodGet)
 
 	// Auth
 	v1.HandleFunc("/auth/signin", api.SignInHandler).Methods(http.MethodPost)

@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/rgynn/klottr/pkg/config"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -36,20 +37,16 @@ type Service struct {
 	users    user.Repository
 	misc     thread.Repository
 	comments comment.Repository
+	metrics  prometheus.Collector
 }
 
 func NewAPIFromConfig(cfg *config.Config) (*Service, error) {
 
-	ctx, cancel := context.WithTimeout(context.Background(), cfg.RequestTimeout)
-	defer cancel()
+	setupMetrics()
 
-	mongodb, err := mongo.Connect(ctx, options.Client().ApplyURI(cfg.DatabaseURL))
+	mongodb, err := setupMongoDBConnection(cfg)
 	if err != nil {
-		return nil, err
-	}
-
-	if err := mongodb.Ping(ctx, nil); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to setup connection to mongodb: %w", err)
 	}
 
 	users, err := mongouser.NewRepository(cfg, mongodb)
@@ -107,4 +104,21 @@ func (svc *Service) MarshalJSONResponse(w http.ResponseWriter, status int, v int
 func (svc *Service) NoContentResponse(w http.ResponseWriter, status int) error {
 	w.WriteHeader(status)
 	return nil
+}
+
+func setupMongoDBConnection(cfg *config.Config) (*mongo.Client, error) {
+
+	ctx, cancel := context.WithTimeout(context.Background(), cfg.RequestTimeout)
+	defer cancel()
+
+	mongodb, err := mongo.Connect(ctx, options.Client().ApplyURI(cfg.DatabaseURL))
+	if err != nil {
+		return nil, err
+	}
+
+	if err := mongodb.Ping(ctx, nil); err != nil {
+		return nil, err
+	}
+
+	return mongodb, nil
 }

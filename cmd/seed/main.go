@@ -17,7 +17,12 @@ var threadCategories = []string{"misc"}
 
 func main() {
 
-	cfg, err := config.NewFromEnv()
+	flags, err := config.GetFlags()
+	if err != nil {
+		logger.Fatal(err)
+	}
+
+	cfg, err := config.NewFromEnv(flags.EnvFiles...)
 	if err != nil {
 		logger.Fatal(err)
 	}
