@@ -7,7 +7,6 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/rgynn/klottr/pkg/config"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -37,7 +36,6 @@ type Service struct {
 	users    user.Repository
 	misc     thread.Repository
 	comments comment.Repository
-	metrics  prometheus.Collector
 }
 
 func NewAPIFromConfig(cfg *config.Config) (*Service, error) {
