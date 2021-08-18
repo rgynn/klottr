@@ -5,7 +5,7 @@ BUILDDATE=$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
 test:
 	go test ./...
 test_intg:
-	go run cmd/intg_test/*.go
+	go run cmd/intg_test/main.go -env-files .env
 run:
 	go run main.go -env-files .env
 build:
@@ -15,4 +15,4 @@ build_docker:
 clean:
 	rm -rf build
 db_seed:
-	go run cmd/seed/main.go
+	go run cmd/seed/main.go -env-files .env

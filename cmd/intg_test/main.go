@@ -10,7 +10,7 @@ func main() {
 
 	logger := logrus.New()
 
-	cfg, err := config.NewFromEnv()
+	cfg, err := config.NewFromEnv("../../.env")
 	if err != nil {
 		logger.Fatal(err)
 	}

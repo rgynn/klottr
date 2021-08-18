@@ -4,6 +4,8 @@ import (
 	"context"
 	"net/http"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func (svc *Service) VersionHandler(w http.ResponseWriter, r *http.Request) {
@@ -44,4 +46,8 @@ func (svc *Service) HealthHandler(w http.ResponseWriter, r *http.Request) {
 	}); err != nil {
 		return
 	}
+}
+
+func (svc *Service) MetricsHandler(w http.ResponseWriter, r *http.Request) {
+	promhttp.Handler().ServeHTTP(w, r)
 }
